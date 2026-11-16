@@ -31,13 +31,14 @@ Kubernetes `CronJob`. A crontab covering every job:
 */5 * * * *  curl -fsS -H "Authorization: Bearer $CRON_SECRET" $CP/api/cron/check-ring-health
 */5 * * * *  curl -fsS -H "Authorization: Bearer $CRON_SECRET" $CP/api/cron/run-hunts
 */5 * * * *  curl -fsS -H "Authorization: Bearer $CRON_SECRET" $CP/api/cron/write-lake
+*/5 * * * *  curl -fsS -H "Authorization: Bearer $CRON_SECRET" $CP/api/cron/detect-lake-backlog
 30 3 * * *   curl -fsS -H "Authorization: Bearer $CRON_SECRET" $CP/api/cron/prune-lake
 40 3 * * *   curl -fsS -H "Authorization: Bearer $CRON_SECRET" $CP/api/cron/prune-prevalence
 50 3 * * *   curl -fsS -H "Authorization: Bearer $CRON_SECRET" $CP/api/cron/prune-artifacts
 0 4 * * *    curl -fsS -H "Authorization: Bearer $CRON_SECRET" $CP/api/cron/build-snapshots
 ```
 
-`write-lake` and `prune-lake` answer `503` while the telemetry archive is off, and
+`write-lake`, `detect-lake-backlog` and `prune-lake` answer `503` while the telemetry archive is off, and
 `build-snapshots` while no snapshot signer is configured; leave them out of the schedule in that
 case.
 
@@ -52,6 +53,7 @@ case.
 | [`check-ring-health`](../app/api/cron/check-ring-health/route.ts) | Compares each canary ring with `prod` and halts a regressing ring's content release ([Content and releases](content-and-releases.md#halt-rollback-and-auto-halt)). | Every 5 minutes |
 | [`run-hunts`](../app/api/cron/run-hunts/route.ts) | Runs the scheduled hunts that are due (at most 20 per call, none started after 30 seconds), then keeps the newest 100 runs per hunt. New matches are queued as `hunt.new_matches` notifications. | Every few minutes |
 | [`write-lake`](../app/api/cron/write-lake/route.ts) | Writes up to `LAKE_WRITER_MAX_BATCHES` queued event batches to Parquet and reports `remaining`. | Every few minutes, when the archive is on |
+| [`detect-lake-backlog`](../app/api/cron/detect-lake-backlog/route.ts) | Opens a `high` case `Telemetry lake backlog` for a tenant whose lake write queue is older than `LAKE_BACKLOG_MAX_AGE_MINUTES` (15) or longer than `LAKE_BACKLOG_MAX_BATCHES` (5000), unless one is open ([`lake-backlog-case.ts`](../lib/lake-backlog-case.ts)). | Every few minutes, when the archive is on |
 | [`prune-lake`](../app/api/cron/prune-lake/route.ts) | Deletes archive partitions past each tenant's retention, with an audit row per deletion. | Daily |
 | [`prune-prevalence`](../app/api/cron/prune-prevalence/route.ts) | Applies the prevalence retention and row cap, and deletes ingest statistics older than 14 days. | Daily |
 | [`prune-artifacts`](../app/api/cron/prune-artifacts/route.ts) | Deletes content artifacts no release lists, older than 24 hours; deletes nothing if a manifest cannot be read. | Daily |

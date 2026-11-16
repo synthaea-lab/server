@@ -67,6 +67,7 @@ Set exactly one of `LAKE_DIR` or `LAKE_S3_BUCKET` to turn the archive on; settin
 | `LAKE_S3_PREFIX` | A key prefix inside the bucket, to share it. |
 | `LAKE_S3_FORCE_PATH_STYLE` | `true` or `false`; defaults to `true` when an endpoint is set. |
 | `LAKE_WRITER_MAX_BATCHES` | Batches one `write-lake` call drains (default 200). |
+| `LAKE_BACKLOG_MAX_AGE_MINUTES`, `LAKE_BACKLOG_MAX_BATCHES` | The limits of the `detect-lake-backlog` alert (defaults 15 and 5000). A value that is set but not a positive integer fails the job. |
 
 On S3:
 
@@ -88,8 +89,13 @@ The development compose file does not include an object store; point `LAKE_S3_*`
 - Compaction is not measured at volume: the thresholds (8 files, 8 MiB, 128 MiB, 50 partitions) are
   chosen, not sized, and a whole merge is held in memory.
 - No bound on the queue: with the archive on and `write-lake` not scheduled, `lake_batches` grows
-  without limit. `/console/ops` shows the tenant's queue (batches, events, age of the oldest) while the
-  archive is on, and flags it past 15 minutes; it is shown, not alerted on, and bounds nothing.
+  without limit, and ingest never refuses an upload over it (an agent that is refused may lose what it
+  sent). `/console/ops` shows the tenant's queue (batches, events, age of the oldest) and flags it past
+  15 minutes. The `detect-lake-backlog` job alerts: it opens a `high` case `Telemetry lake backlog` for a
+  tenant whose oldest queued batch is older than `LAKE_BACKLOG_MAX_AGE_MINUTES` (default 15) or whose
+  queue holds more than `LAKE_BACKLOG_MAX_BATCHES` batches (default 5000), unless one is already open.
+  It does not close the case when the queue drains. Schedule it every few minutes, apart from
+  `write-lake`: a writer that is stuck or not scheduled never reaches its own check.
 - An event an agent sends twice (a lost `2xx`, then a resend) is stored twice.
 - Ingest parses JSON as double-precision numbers, so integers above 2^53 in typed fields are
   rounded; the `event` column keeps the original text.
