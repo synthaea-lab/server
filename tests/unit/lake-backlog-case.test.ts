@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
+import type { PrismaClient } from "@prisma/client";
+import { describe, expect, it, vi } from "vitest";
 import {
+  LAKE_BACKLOG_CASE_TITLE,
+  hasLiveLakeBacklogCase,
   lakeBacklogBreach,
   lakeBacklogCaseDescription,
   lakeBacklogLimitsFromEnv,
@@ -34,6 +37,26 @@ describe("lakeBacklogCaseDescription", () => {
     const text = lakeBacklogCaseDescription({ batches: 7, events: 42, oldestAgeMs: 1_200_000 }, "age", LIMITS);
     expect(text).toContain("20 min old (limit 15 min)");
     expect(text).toContain("7 batches, 42 events");
+  });
+});
+
+describe("hasLiveLakeBacklogCase", () => {
+  const lookup = (found: boolean) => {
+    const findFirst = vi.fn().mockResolvedValue(found ? { id: "c1" } : null);
+    return { findFirst, db: { case: { findFirst } } as unknown as Pick<PrismaClient, "case"> };
+  };
+
+  it("looks for the open and investigating cases of that tenant and title only", async () => {
+    const { findFirst, db } = lookup(true);
+    expect(await hasLiveLakeBacklogCase(db, "t1")).toBe(true);
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { tenantId: "t1", status: { in: ["open", "investigating"] }, title: LAKE_BACKLOG_CASE_TITLE },
+      select: { id: true },
+    });
+  });
+
+  it("is false when there is none", async () => {
+    expect(await hasLiveLakeBacklogCase(lookup(false).db, "t1")).toBe(false);
   });
 });
 

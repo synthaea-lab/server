@@ -93,7 +93,7 @@ The development compose file does not include an object store; point `LAKE_S3_*`
   sent). `/console/ops` shows the tenant's queue (batches, events, age of the oldest) and flags it past
   15 minutes. The `detect-lake-backlog` job alerts: it opens a `high` case `Telemetry lake backlog` for a
   tenant whose oldest queued batch is older than `LAKE_BACKLOG_MAX_AGE_MINUTES` (default 15) or whose
-  queue holds more than `LAKE_BACKLOG_MAX_BATCHES` batches (default 5000), unless one is already open.
+  queue holds more than `LAKE_BACKLOG_MAX_BATCHES` batches (default 5000), unless one is already open or investigating.
   It does not close the case when the queue drains. Schedule it every few minutes, apart from
   `write-lake`: a writer that is stuck or not scheduled never reaches its own check.
 - An event an agent sends twice (a lost `2xx`, then a resend) is stored twice.

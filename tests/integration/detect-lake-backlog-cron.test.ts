@@ -80,14 +80,24 @@ describe("GET /api/cron/detect-lake-backlog", () => {
     expect(await prisma.case.count({ where: { tenantId: healthy.id } })).toBe(0);
   });
 
-  it("opens a new case once the previous one is closed and the queue is still stuck", async () => {
+  it("opens a new case once the previous one is resolved and the queue is still stuck", async () => {
     const stuck = await createTestTenant();
     await queue(stuck.id, 30);
     await GET(cronRequest());
-    await prisma.case.updateMany({ where: { tenantId: stuck.id }, data: { status: "closed" } });
+    await prisma.case.updateMany({ where: { tenantId: stuck.id }, data: { status: "resolved" } });
 
     expect((await (await GET(cronRequest())).json()).casesCreated).toBe(1);
     expect(await prisma.case.count({ where: { tenantId: stuck.id } })).toBe(2);
+  });
+
+  it("opens no second case while the first is being investigated", async () => {
+    const stuck = await createTestTenant();
+    await queue(stuck.id, 30);
+    await GET(cronRequest());
+    await prisma.case.updateMany({ where: { tenantId: stuck.id }, data: { status: "investigating" } });
+
+    expect((await (await GET(cronRequest())).json()).casesCreated).toBe(0);
+    expect(await prisma.case.count({ where: { tenantId: stuck.id } })).toBe(1);
   });
 
   it("opens nothing for an empty queue", async () => {

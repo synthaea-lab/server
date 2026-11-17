@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyCronRequest } from "@/lib/cron-auth";
 import { prisma } from "@/lib/prisma";
 import { lakeEnabled } from "@/lib/lake-store";
-import { loadLakeBacklog } from "@/lib/lake-backlog";
+import { loadLakeBacklogs } from "@/lib/lake-backlog";
 import {
   LAKE_BACKLOG_CASE_TITLE,
-  hasOpenLakeBacklogCase,
+  hasLiveLakeBacklogCase,
   lakeBacklogBreach,
   lakeBacklogCaseDescription,
   lakeBacklogLimitsFromEnv,
@@ -15,7 +15,7 @@ import {
  * GET /api/cron/detect-lake-backlog
  * Scheduled job: opens a `high` case `Telemetry lake backlog` for a tenant whose lake write queue
  * is older than `LAKE_BACKLOG_MAX_AGE_MINUTES` (default 15) or longer than `LAKE_BACKLOG_MAX_BATCHES`
- * (default 5000), unless one is already open (issue #4, `lib/lake-backlog-case.ts`). It is its own
+ * (default 5000), unless one is already open or investigating (issue #4, `lib/lake-backlog-case.ts`). It is its own
  * job and not part of `write-lake`: a writer that is stuck or not scheduled never reaches its own check.
  *
  * Authentication: CRON_SECRET bearer (`verifyCronRequest`).
@@ -33,16 +33,17 @@ export async function GET(req: NextRequest) {
     const limits = lakeBacklogLimitsFromEnv();
     const now = new Date();
     // Only tenants with something queued can be over a limit.
-    const queued = await prisma.lakeBatch.groupBy({ by: ["tenantId"] });
+    const queued = await loadLakeBacklogs(prisma, now);
 
     let casesCreated = 0;
     const breached: string[] = [];
-    for (const { tenantId } of queued) {
-      const backlog = await loadLakeBacklog(prisma, tenantId, now);
+    for (const { tenantId, ...backlog } of queued) {
       const breach = lakeBacklogBreach(backlog, limits);
       if (!breach) continue;
       breached.push(tenantId);
-      if (await hasOpenLakeBacklogCase(prisma, tenantId)) continue;
+      // Check then create is not atomic: two overlapping runs could open two cases. At a 5-minute
+      // schedule that is rare and costs one duplicate case, so no lock is taken.
+      if (await hasLiveLakeBacklogCase(prisma, tenantId)) continue;
       await prisma.case.create({
         data: {
           tenantId,

@@ -1,4 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
+import { positiveIntFromEnv } from "@/lib/env-int";
+import type { CaseStatus } from "@/lib/hunt-search";
 import type { LakeBacklog } from "@/lib/lake-backlog";
 
 /**
@@ -8,14 +10,14 @@ import type { LakeBacklog } from "@/lib/lake-backlog";
  * queue grows, and this opens a case so someone looks before the disk is full.
  *
  * A tenant is over the line when its oldest queued batch is older than `maxAgeMs` or it queues more
- * than `maxBatches`. One open case per tenant: while a case titled `LAKE_BACKLOG_CASE_TITLE` is
- * open, the cron opens no other one. It does not close the case when the queue drains; an analyst
+ * than `maxBatches`. One live case per tenant: while a case titled `LAKE_BACKLOG_CASE_TITLE` is
+ * `open` or `investigating`, the cron opens no other one. It does not close the case when the queue drains; an analyst
  * does, like any other case.
  */
 export const LAKE_BACKLOG_CASE_TITLE = "Telemetry lake backlog";
 
-export const DEFAULT_MAX_AGE_MS = 15 * 60 * 1000;
-export const DEFAULT_MAX_BATCHES = 5_000;
+export const DEFAULT_BACKLOG_MAX_AGE_MS = 15 * 60 * 1000;
+export const DEFAULT_BACKLOG_MAX_BATCHES = 5_000;
 
 export type LakeBacklogLimits = { maxAgeMs: number; maxBatches: number };
 
@@ -40,27 +42,21 @@ export function lakeBacklogCaseDescription(backlog: LakeBacklog, breach: "age" |
   );
 }
 
-/** A positive integer from the environment, or `fallback` when unset; a value that is set but wrong throws. */
-function positiveInt(env: Record<string, string | undefined>, name: string, fallback: number): number {
-  const raw = env[name];
-  if (raw === undefined || raw === "") return fallback;
-  const n = Number(raw);
-  if (!Number.isInteger(n) || n <= 0) throw new Error(`${name} must be a positive integer, got "${raw}"`);
-  return n;
-}
-
 export function lakeBacklogLimitsFromEnv(env: Record<string, string | undefined> = process.env): LakeBacklogLimits {
   return {
-    maxAgeMs: positiveInt(env, "LAKE_BACKLOG_MAX_AGE_MINUTES", DEFAULT_MAX_AGE_MS / 60_000) * 60_000,
-    maxBatches: positiveInt(env, "LAKE_BACKLOG_MAX_BATCHES", DEFAULT_MAX_BATCHES),
+    maxAgeMs: positiveIntFromEnv(env, "LAKE_BACKLOG_MAX_AGE_MINUTES", DEFAULT_BACKLOG_MAX_AGE_MS / 60_000) * 60_000,
+    maxBatches: positiveIntFromEnv(env, "LAKE_BACKLOG_MAX_BATCHES", DEFAULT_BACKLOG_MAX_BATCHES),
   };
 }
 
-/** Whether the tenant already has an open lake-backlog case. */
-export async function hasOpenLakeBacklogCase(db: Pick<PrismaClient, "case">, tenantId: string): Promise<boolean> {
-  const open = await db.case.findFirst({
-    where: { tenantId, status: "open", title: LAKE_BACKLOG_CASE_TITLE },
+/** The statuses of a case someone may still be working on; `resolved` and `false_positive` are over. */
+const LIVE_CASE_STATUSES = ["open", "investigating"] as const satisfies readonly CaseStatus[];
+
+/** Whether the tenant already has a live (`open` or `investigating`) lake-backlog case. */
+export async function hasLiveLakeBacklogCase(db: Pick<PrismaClient, "case">, tenantId: string): Promise<boolean> {
+  const live = await db.case.findFirst({
+    where: { tenantId, status: { in: [...LIVE_CASE_STATUSES] }, title: LAKE_BACKLOG_CASE_TITLE },
     select: { id: true },
   });
-  return open !== null;
+  return live !== null;
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyCronRequest } from "@/lib/cron-auth";
 import { prisma } from "@/lib/prisma";
+import { positiveIntFromEnv } from "@/lib/env-int";
 import { pruneIngestStats } from "@/lib/ingest-stats";
 import {
   DEFAULT_MAX_ROWS_PER_TENANT,
@@ -9,15 +10,6 @@ import {
 } from "@/lib/prevalence";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** A positive integer from the environment, or `fallback` when unset. A value that is set but wrong throws: a typo must not silently mean "keep the default". */
-function positiveInt(name: string, fallback: number): number {
-  const raw = process.env[name];
-  if (raw === undefined || raw === "") return fallback;
-  const n = Number(raw);
-  if (!Number.isInteger(n) || n <= 0) throw new Error(`${name} must be a positive integer, got "${raw}"`);
-  return n;
-}
 
 /**
  * GET /api/cron/prune-prevalence
@@ -32,8 +24,8 @@ export async function GET(req: NextRequest) {
     const denied = await verifyCronRequest(req);
     if (denied) return denied;
 
-    const retentionDays = positiveInt("PREVALENCE_RETENTION_DAYS", DEFAULT_RETENTION_DAYS);
-    const maxRowsPerTenant = positiveInt("PREVALENCE_MAX_ROWS_PER_TENANT", DEFAULT_MAX_ROWS_PER_TENANT);
+    const retentionDays = positiveIntFromEnv(process.env, "PREVALENCE_RETENTION_DAYS", DEFAULT_RETENTION_DAYS);
+    const maxRowsPerTenant = positiveIntFromEnv(process.env, "PREVALENCE_MAX_ROWS_PER_TENANT", DEFAULT_MAX_ROWS_PER_TENANT);
     const olderThan = new Date(Date.now() - retentionDays * DAY_MS);
 
     const result = await prunePrevalence(prisma, { olderThan, maxRowsPerTenant });
