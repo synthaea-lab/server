@@ -10,6 +10,7 @@
 import { readFile } from "fs/promises";
 import path from "path";
 import { z } from "zod";
+import { RingSchema } from "@/lib/rings";
 
 /**
  * Content types supported by the content distribution system
@@ -49,7 +50,7 @@ export type ContentEntry = z.infer<typeof ContentEntry>;
 export const ContentManifest = z.object({
   schema_version: z.literal(1),           // Schema version (strict validation, reject unknown)
   release_version: z.number().int().min(1), // Monotone counter (anti-rollback)
-  ring: z.enum(["canary_0", "canary_1", "canary_2", "prod"]), // Target ring
+  ring: RingSchema, // Target ring
   released_at: z.string(),                // ISO 8601 UTC timestamp
   // At least one: an empty list would make every agent of the ring delete all its content
   // (the agent refuses it too; the release manifest refuses an empty list the same way).

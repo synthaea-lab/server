@@ -14,6 +14,7 @@
 import { readFile } from "fs/promises";
 import path from "path";
 import { z } from "zod";
+import { isRing } from "@/lib/rings";
 
 const KEY_HEX = /^[a-f0-9]{64}$/;
 /** Same ceiling as the agent's `MAX_VALIDITY_SECS` (30 days). */
@@ -60,11 +61,9 @@ export const KeyRotationManifest = z
 
 export type KeyRotationManifest = z.infer<typeof KeyRotationManifest>;
 
-const RINGS = new Set(["canary_0", "canary_1", "canary_2", "prod"]);
-
 /** Filesystem path of a ring's pending rotation, or `null` for a ring name that is not one. */
 export function keyRotationFile(ring: string): string | null {
-  if (!RINGS.has(ring)) return null;
+  if (!isRing(ring)) return null;
   return path.join(process.cwd(), "storage", "key-rotations", `${ring}.json`);
 }
 

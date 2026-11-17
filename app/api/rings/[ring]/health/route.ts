@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenantMember } from "@/lib/admin-auth";
+import { RINGS, isRing } from "@/lib/rings";
 
-const VALID_RINGS = ["canary_0", "canary_1", "canary_2", "prod"];
 const SILENCE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
@@ -32,9 +32,9 @@ export async function GET(
     const { ring } = params;
 
     // Validate ring parameter
-    if (!VALID_RINGS.includes(ring)) {
+    if (!isRing(ring)) {
       return NextResponse.json(
-        { error: "Invalid ring", validRings: VALID_RINGS },
+        { error: "Invalid ring", validRings: RINGS },
         { status: 400 }
       );
     }

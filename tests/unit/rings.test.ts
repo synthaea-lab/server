@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { loadRings } from "@/lib/rings";
+import { CANARY_RINGS, RINGS, RingSchema, isRing, loadRings } from "@/lib/rings";
 import { FLEET_PAGE_SIZE } from "@/lib/fleet";
 
 const NOW = new Date("2026-10-01T12:00:00Z");
@@ -56,6 +56,26 @@ function stubDb(
     },
   };
 }
+
+describe("the ring domain is defined once (#48)", () => {
+  it("lists the canary rings in rollout order, then prod", () => {
+    expect(RINGS).toEqual(["canary_0", "canary_1", "canary_2", "prod"]);
+  });
+
+  it("names every ring but prod as a canary", () => {
+    expect(CANARY_RINGS).toEqual(RINGS.filter((ring) => ring !== "prod"));
+  });
+
+  it.each(RINGS)("accepts %s in the schema and the guard", (ring) => {
+    expect(RingSchema.parse(ring)).toBe(ring);
+    expect(isRing(ring)).toBe(true);
+  });
+
+  it.each(["canary_9", "Prod", "", "constructor", "__proto__"])("refuses %j in the schema and the guard", (value) => {
+    expect(RingSchema.safeParse(value).success).toBe(false);
+    expect(isRing(value)).toBe(false);
+  });
+});
 
 describe("loadRings (issue #83)", () => {
   it("shows a halted newest release and offers no content until resume or rollback", async () => {
