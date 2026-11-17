@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenantAdmin, requireTenantMember } from "@/lib/admin-auth";
 import { z } from "zod";
+import { RingSchema } from "@/lib/rings";
 
 const RingAssignmentSchema = z.object({
-  ring: z.enum(["canary_0", "canary_1", "canary_2", "prod"]),
+  ring: RingSchema,
 });
 
 /**

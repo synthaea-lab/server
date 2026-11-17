@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenantAdmin } from "@/lib/admin-auth";
 import { z } from "zod";
+import { RingSchema } from "@/lib/rings";
 import { recordAudit } from "@/lib/audit";
 import {
   correctiveReleaseAdvice,
@@ -10,7 +11,7 @@ import {
 } from "@/lib/content-rollback";
 
 const RollbackSchema = z.object({
-  ring: z.enum(["canary_0", "canary_1", "canary_2", "prod"]),
+  ring: RingSchema,
   targetVersion: z.number().int().min(1).optional(),
   reason: z.string().optional(),
 });

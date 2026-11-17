@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateAgent } from "@/lib/agent-auth";
 import { loadActiveManifest } from "@/lib/active-content-manifest";
-
-const VALID_RINGS = ["canary_0", "canary_1", "canary_2", "prod"];
+import { RINGS, isRing } from "@/lib/rings";
 
 /**
  * GET /api/content/manifest/{ring}
@@ -23,9 +22,9 @@ export async function GET(
 
     // Validate ring parameter
     const { ring } = params;
-    if (!VALID_RINGS.includes(ring)) {
+    if (!isRing(ring)) {
       return NextResponse.json(
-        { error: "Invalid ring", validRings: VALID_RINGS },
+        { error: "Invalid ring", validRings: RINGS },
         { status: 400 }
       );
     }

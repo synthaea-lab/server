@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyCronRequest } from "@/lib/cron-auth";
 import { prisma } from "@/lib/prisma";
+import { CANARY_RINGS } from "@/lib/rings";
 
-const RINGS = ["canary_0", "canary_1", "canary_2"];
 const SILENCE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
 // Auto-halt criteria (from ADR-0016)
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
       const prodMetrics = await calculateRingMetrics(tenant.id, "prod");
 
       // Check each canary ring
-      for (const ring of RINGS) {
+      for (const ring of CANARY_RINGS) {
         checked++;
 
         // Calculate canary ring metrics

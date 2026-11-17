@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenantAdmin } from "@/lib/admin-auth";
 import { z } from "zod";
+import { RingSchema } from "@/lib/rings";
 import { recordAudit } from "@/lib/audit";
 import { lockContentRing } from "@/lib/content-rollback";
 
 const HaltSchema = z.object({
-  ring: z.enum(["canary_0", "canary_1", "canary_2", "prod"]),
+  ring: RingSchema,
   reason: z.string().optional(),
 });
 

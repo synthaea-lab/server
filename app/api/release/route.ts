@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { RingSchema } from "@/lib/rings";
 import { prisma } from "@/lib/prisma";
 import { requireTenantAdmin, requireTenantMember } from "@/lib/admin-auth";
 import { publishRelease } from "@/lib/release-publish";
@@ -7,7 +8,7 @@ import { publishResponse } from "@/lib/http/publish-response";
 import { parseLimit } from "@/lib/http/query";
 
 const CreateReleaseSchema = z.object({
-  ring: z.enum(["canary_0", "canary_1", "canary_2", "prod"]),
+  ring: RingSchema,
   releaseVersion: z.number().int().min(1),
   manifestUrl: z.string().min(1),
   manifestSha256: z.string().regex(/^[a-f0-9]{64}$/),
