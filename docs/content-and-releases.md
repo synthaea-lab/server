@@ -120,7 +120,9 @@ is a `502`, never a different manifest.
 - **Auto-halt.** The `check-ring-health` job compares each canary ring with `prod` in the same
   tenant and halts the canary's active release when its silent-agent rate exceeds 5 %, its
   false-positive count is more than twice prod's, or its detection count dropped more than 20 %.
-  It opens a `high` case and writes a `content.release.auto_halt` audit row with the metrics.
+  A false positive is a detection whose case or fleet case an analyst marked `false_positive`,
+  whatever its severity; a detection nobody has triaged yet is not counted. It opens a `high`
+  case and writes a `content.release.auto_halt` audit row with the metrics.
 
 Halt and rollback are tenant `owner`/`admin` actions, serialized per tenant and ring by an
 advisory lock, and audited. The console's buttons call the same routes.
