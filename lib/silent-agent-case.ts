@@ -1,5 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 
+import { ACTIVE_CASE_STATUSES } from "@/lib/hunt-search";
+
 /**
  * The case the silent-agent cron opens for an agent that stopped heartbeating, and how it is
  * found again. The case has no column naming its agent, so the text is the link: the title is
@@ -12,16 +14,13 @@ import type { PrismaClient } from "@prisma/client";
  * one query per tenant instead of one per agent.
  */
 
-/**
- * The statuses of a case somebody is still dealing with: a silent agent that one of these cases
- * names does not get another (#83). `investigating` is the same case, worked by an analyst; the
- * cron used to look for `open` only and opened a new `high` case every run once the first was
- * moved. `resolved` and `false_positive` are closed: if the agent is still silent after an analyst
- * closed the case, a new case is the alert, as for `detect-lake-backlog`. (`false_positive` is a
- * verdict on that case, not a standing exception for the host.) Any other status of
- * `CASE_STATUSES` (`lib/hunt-search.ts`) is closed until it is added here on purpose.
- */
-export const ACTIVE_CASE_STATUSES = ["open", "investigating"] as const;
+// The statuses of a case somebody is still dealing with: a silent agent that one of these cases
+// names does not get another (#83). `investigating` is the same case, worked by an analyst; the
+// cron used to look for `open` only and opened a new `high` case every run once the first was
+// moved. `resolved` and `false_positive` are closed: if the agent is still silent after an analyst
+// closed the case, a new case is the alert. (`false_positive` is a verdict on that case, not a
+// standing exception for the host.) The list is `ACTIVE_CASE_STATUSES` in `lib/hunt-search.ts`,
+// next to `CASE_STATUSES`: any status not in it is closed until it is added there on purpose.
 
 type SilentAgent = { id: string; hostname: string | null; enrollmentId: string; lastSeen: Date };
 
