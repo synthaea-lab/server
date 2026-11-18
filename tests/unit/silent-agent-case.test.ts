@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { ACTIVE_CASE_STATUSES, CASE_STATUSES } from "@/lib/hunt-search";
 import {
-  ACTIVE_CASE_STATUSES,
   caseNamesAgent,
   findActiveCasesNamingAgents,
   findActiveSilentCases,
@@ -36,10 +36,15 @@ describe("which cases count as an existing silent-agent case", () => {
   // `investigating` stopped suppressing the next run and a new `high` case opened every minute.
   it("counts the non-terminal statuses, not the closed ones", () => {
     expect([...ACTIVE_CASE_STATUSES]).toEqual(["open", "investigating"]);
-    // Every status of the case workflow is either active or closed: a new status must be decided.
-    const all = ["open", "investigating", "resolved", "false_positive"];
+    // Every status of the case workflow is either active or in this explicit closed list: a new
+    // status in `CASE_STATUSES` fails here until somebody decides which it is.
+    const closed = ["resolved", "false_positive"];
     const active = new Set<string>(ACTIVE_CASE_STATUSES);
-    expect(all.filter((st) => !active.has(st))).toEqual(["resolved", "false_positive"]);
+    const unclassified = CASE_STATUSES.filter((st) => !active.has(st) && !closed.includes(st));
+    expect(unclassified).toEqual([]);
+    // And the closed list names real statuses (a renamed status cannot linger in it).
+    expect(closed.filter((st) => !(CASE_STATUSES as readonly string[]).includes(st))).toEqual([]);
+    expect(CASE_STATUSES.filter((st) => !active.has(st))).toEqual(closed);
   });
 
   it("both lookups ask for the active statuses, so an investigating case suppresses", async () => {
@@ -114,7 +119,7 @@ describe("notifier: findActiveSilentCases", () => {
     expect(findMany).not.toHaveBeenCalled();
   });
 
-  it("asks once for every enrollment id, open `Agent Silent:` cases of the tenant only", async () => {
+  it("asks once for every enrollment id, active `Agent Silent:` cases of the tenant only", async () => {
     const { db, findMany } = fakeDb([]);
     await findActiveSilentCases(db, "t-1", ["enr-1", "enr-2"]);
     expect(findMany).toHaveBeenCalledTimes(1);
