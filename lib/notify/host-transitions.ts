@@ -2,7 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import { fleetStatus, sensorsOf, lostRecently, type FleetStatus } from "@/lib/fleet-health";
 import { enqueueForChannel, type NotifyEvent } from "./outbox";
 import { consoleUrl } from "./urls";
-import { findOpenSilentCases } from "@/lib/silent-agent-case";
+import { findActiveSilentCases } from "@/lib/silent-agent-case";
 
 /**
  * Host state transitions for the notification outbox (ADR-0036 point 2, slice 2, #863).
@@ -86,9 +86,9 @@ export async function evaluateHostTransitions(
     });
     // The silent-agent cron's cases, when it has opened them by now: looked up once per tenant,
     // for every silent host, and only if a silent message is built.
-    let silentCases: ReturnType<typeof findOpenSilentCases> | undefined;
+    let silentCases: ReturnType<typeof findActiveSilentCases> | undefined;
     const caseLinkOf = async (enrollmentId: string) => {
-      silentCases ??= findOpenSilentCases(
+      silentCases ??= findActiveSilentCases(
         db,
         tenantId,
         hosts.filter((h) => h.current === "silent").map((h) => h.agent.enrollmentId)
