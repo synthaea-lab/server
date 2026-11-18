@@ -12,6 +12,17 @@ import type { PrismaClient } from "@prisma/client";
  * one query per tenant instead of one per agent.
  */
 
+/**
+ * The statuses of a case somebody is still dealing with: a silent agent that one of these cases
+ * names does not get another (#83). `investigating` is the same case, worked by an analyst; the
+ * cron used to look for `open` only and opened a new `high` case every run once the first was
+ * moved. `resolved` and `false_positive` are closed: if the agent is still silent after an analyst
+ * closed the case, a new case is the alert, as for `detect-lake-backlog`. (`false_positive` is a
+ * verdict on that case, not a standing exception for the host.) Any other status of
+ * `CASE_STATUSES` (`lib/hunt-search.ts`) is closed until it is added here on purpose.
+ */
+export const ACTIVE_CASE_STATUSES = ["open", "investigating"] as const;
+
 type SilentAgent = { id: string; hostname: string | null; enrollmentId: string; lastSeen: Date };
 
 /** What a lookup reads back from a case to tell which agent it belongs to. */
@@ -28,7 +39,7 @@ export function silentCaseDescription(agent: Pick<SilentAgent, "enrollmentId" | 
 }
 
 /**
- * Whether an open case stops the cron from opening another one for `agent`: its title contains
+ * Whether an active case stops the cron from opening another one for `agent`: its title contains
  * the agent id, or its description contains the agent's enrollment mark. Both are substring
  * matches, as the cron has always done them (so `enr-10`'s case also counts for `enr-1`).
  */
@@ -37,10 +48,10 @@ export function caseNamesAgent(c: CaseText, agent: Pick<SilentAgent, "id" | "enr
 }
 
 /**
- * The open cases of a tenant that name any of `agents` (see `caseNamesAgent`), in one query.
+ * The active cases (`ACTIVE_CASE_STATUSES`) of a tenant that name any of `agents` (see `caseNamesAgent`), in one query.
  * The cron checks each agent against this list, and adds the cases it opens to it.
  */
-export async function findOpenCasesNamingAgents(
+export async function findActiveCasesNamingAgents(
   db: Pick<PrismaClient, "case">,
   tenantId: string,
   agents: readonly Pick<SilentAgent, "id" | "enrollmentId">[]
@@ -49,7 +60,7 @@ export async function findOpenCasesNamingAgents(
   return db.case.findMany({
     where: {
       tenantId,
-      status: "open",
+      status: { in: [...ACTIVE_CASE_STATUSES] },
       OR: agents.flatMap((a) => [
         { title: { contains: a.id } },
         { description: { contains: enrollmentMark(a.enrollmentId) } },
@@ -60,12 +71,12 @@ export async function findOpenCasesNamingAgents(
 }
 
 /**
- * The open silent-agent case of each of `enrollmentIds` in a tenant, in one query, keyed by
+ * The active silent-agent case (`ACTIVE_CASE_STATUSES`) of each of `enrollmentIds` in a tenant, in one query, keyed by
  * enrollment id: a case whose title starts with `Agent Silent:` and whose description contains
  * the enrollment mark. An agent with no such case is absent from the map. With several, the
  * first row returned wins; the query has no order, like the `findFirst` it replaces.
  */
-export async function findOpenSilentCases(
+export async function findActiveSilentCases(
   db: Pick<PrismaClient, "case">,
   tenantId: string,
   enrollmentIds: readonly string[]
@@ -76,7 +87,7 @@ export async function findOpenSilentCases(
   const cases = await db.case.findMany({
     where: {
       tenantId,
-      status: "open",
+      status: { in: [...ACTIVE_CASE_STATUSES] },
       title: { startsWith: "Agent Silent:" },
       OR: enrollmentIds.map((id) => ({ description: { contains: enrollmentMark(id) } })),
     },

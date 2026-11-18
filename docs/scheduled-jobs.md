@@ -46,7 +46,7 @@ case.
 
 | Route | What it does | Interval |
 | --- | --- | --- |
-| [`detect-silent-agents`](../app/api/cron/detect-silent-agents/route.ts) | Opens a `high` case `Agent Silent: <host>` for every agent with no heartbeat for 5 minutes, unless an open case already names it ([`silent-agent-case.ts`](../lib/silent-agent-case.ts)). | Every minute |
+| [`detect-silent-agents`](../app/api/cron/detect-silent-agents/route.ts) | Opens a `high` case `Agent Silent: <host>` for every agent with no heartbeat for 5 minutes, unless an open or investigating case already names it ([`silent-agent-case.ts`](../lib/silent-agent-case.ts)). | Every minute |
 | [`group-detections`](../app/api/cron/group-detections/route.ts) | Assigns ungrouped detections to cases: same agent, same or related ATT&CK technique, within 30 minutes of the case's earliest detection; otherwise opens a case ([`case-grouping.ts`](../lib/case-grouping.ts)). Up to 500 detections per tenant per call. | Every minute |
 | [`join-fleet-cases`](../app/api/cron/join-fleet-cases/route.ts) | Joins the last 7 days of detections across agents into fleet cases on a shared executed hash or identity within 24 hours, skipping generic accounts, hashes most of the fleet runs and entities seen on more than 20 agents ([`fleet-case.ts`](../lib/fleet-case.ts)). Up to 5,000 detections per tenant per call. | Every few minutes |
 | [`deliver-notifications`](../app/api/cron/deliver-notifications/route.ts) | Turns host state changes into outbox rows, sends due rows with retries and back-off, and purges old rows ([`lib/notify/outbox.ts`](../lib/notify/outbox.ts)). The three phases are independent; one that fails is reported and the others still run. | Every minute (the outbox assumes a 60-second period) |
@@ -71,7 +71,7 @@ or several application instances behind one scheduler. The jobs are written for 
   counted and the loop goes on. They answer `200`, `207` when some tenants failed, and `502` when
   all of them did.
 - **Idempotence.** Grouping only reads detections whose `caseId` is still null; joining fleet
-  cases over the same detections changes nothing; the silent-agent job checks for an open case
+  cases over the same detections changes nothing; the silent-agent job checks for an open or investigating case
   naming the agent before opening one.
 - **Leases.** Notification delivery claims due rows with a 5-minute lease and a lease id that
   every outcome write names, so a tick whose lease expired cannot overwrite the result of the tick
