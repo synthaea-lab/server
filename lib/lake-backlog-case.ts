@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import { positiveIntFromEnv } from "@/lib/env-int";
-import type { CaseStatus } from "@/lib/hunt-search";
+import { ACTIVE_CASE_STATUSES } from "@/lib/hunt-search";
 import type { LakeBacklog } from "@/lib/lake-backlog";
 
 /**
@@ -49,13 +49,10 @@ export function lakeBacklogLimitsFromEnv(env: Record<string, string | undefined>
   };
 }
 
-/** The statuses of a case someone may still be working on; `resolved` and `false_positive` are over. */
-const LIVE_CASE_STATUSES = ["open", "investigating"] as const satisfies readonly CaseStatus[];
-
-/** Whether the tenant already has a live (`open` or `investigating`) lake-backlog case. */
+/** Whether the tenant already has an active (`ACTIVE_CASE_STATUSES`: `open` or `investigating`) lake-backlog case. */
 export async function hasLiveLakeBacklogCase(db: Pick<PrismaClient, "case">, tenantId: string): Promise<boolean> {
   const live = await db.case.findFirst({
-    where: { tenantId, status: { in: [...LIVE_CASE_STATUSES] }, title: LAKE_BACKLOG_CASE_TITLE },
+    where: { tenantId, status: { in: [...ACTIVE_CASE_STATUSES] }, title: LAKE_BACKLOG_CASE_TITLE },
     select: { id: true },
   });
   return live !== null;
