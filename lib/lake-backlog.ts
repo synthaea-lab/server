@@ -14,6 +14,17 @@ export type LakeBacklog = {
   oldestAgeMs: number | null;
 };
 
+type Aggregate = { batches: number; events: number | null; oldest: Date | null };
+
+function toBacklog({ batches, events, oldest }: Aggregate, now: Date): LakeBacklog {
+  return {
+    batches,
+    events: events ?? 0,
+    // A clock set back can put the oldest batch in the future: never show a negative age.
+    oldestAgeMs: oldest ? Math.max(0, now.getTime() - oldest.getTime()) : null,
+  };
+}
+
 export async function loadLakeBacklog(prisma: PrismaClient, tenantId: string, now: Date): Promise<LakeBacklog> {
   const agg = await prisma.lakeBatch.aggregate({
     where: { tenantId },
@@ -21,11 +32,19 @@ export async function loadLakeBacklog(prisma: PrismaClient, tenantId: string, no
     _sum: { eventCount: true },
     _min: { receivedAt: true },
   });
-  const oldest = agg._min.receivedAt;
-  return {
-    batches: agg._count._all,
-    events: agg._sum.eventCount ?? 0,
-    // A clock set back can put the oldest batch in the future: never show a negative age.
-    oldestAgeMs: oldest ? Math.max(0, now.getTime() - oldest.getTime()) : null,
-  };
+  return toBacklog({ batches: agg._count._all, events: agg._sum.eventCount, oldest: agg._min.receivedAt }, now);
+}
+
+/** The queue of every tenant that has something queued, in one scan of `lake_batches` (no `tenantId` index to lean on). */
+export async function loadLakeBacklogs(prisma: PrismaClient, now: Date): Promise<Array<{ tenantId: string } & LakeBacklog>> {
+  const rows = await prisma.lakeBatch.groupBy({
+    by: ["tenantId"],
+    _count: { _all: true },
+    _sum: { eventCount: true },
+    _min: { receivedAt: true },
+  });
+  return rows.map((row) => ({
+    tenantId: row.tenantId,
+    ...toBacklog({ batches: row._count._all, events: row._sum.eventCount, oldest: row._min.receivedAt }, now),
+  }));
 }

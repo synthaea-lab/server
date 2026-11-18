@@ -113,7 +113,7 @@ a decoy is first used.
 | `IngestStat` | Kept 14 days, pruned by `prune-prevalence`. |
 | `HuntRun` | Newest 100 per hunt, pruned by `run-hunts`. |
 | `Notification` | Delivered rows kept 30 days, failed rows 90, pruned by `deliver-notifications`. |
-| `LakeBatch` | Drained by `write-lake`. Unbounded if the archive is on and the job is not scheduled. |
+| `LakeBatch` | Drained by `write-lake`. Unbounded if the archive is on and the job is not scheduled; `detect-lake-backlog` opens a case past a limit. |
 | Parquet archive | `prune-lake` deletes partitions older than the tenant's `lakeRetentionDays`. |
 | `Detection`, `Case`, `FleetCase`, `CaseNarrative`, `AuditLog`, `DecoyToken` | Not pruned. |
 | Content artifacts on disk | `prune-artifacts` deletes artifacts no content release lists. |

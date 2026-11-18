@@ -71,6 +71,8 @@ covers bucket permissions and the versioning requirement.
 | `LAKE_S3_ACCESS_KEY_ID`, `LAKE_S3_SECRET_ACCESS_KEY` | SDK default chain | The writer's credentials, both or neither. |
 | `LAKE_S3_READER_ACCESS_KEY_ID`, `LAKE_S3_READER_SECRET_ACCESS_KEY` | SDK default chain | The reader's credentials, both or neither. Never falls back to the writer's. |
 | `LAKE_WRITER_MAX_BATCHES` | `200` | Queued batches one `write-lake` call writes. |
+| `LAKE_BACKLOG_MAX_AGE_MINUTES` | `15` | Age of the oldest queued batch past which `detect-lake-backlog` opens a case. |
+| `LAKE_BACKLOG_MAX_BATCHES` | `5000` | Queue length past which `detect-lake-backlog` opens a case. |
 
 ## Prevalence and snapshots
 

@@ -206,6 +206,7 @@ Background work runs when a scheduler calls the routes under `/api/cron/`, each 
 | `deliver-notifications` | Sends queued webhook notifications | Every minute |
 | `run-hunts` | Runs the scheduled hunts that are due | Every few minutes |
 | `write-lake` | Writes queued events to the telemetry archive | Every few minutes, when the archive is on |
+| `detect-lake-backlog` | Opens a case when the telemetry archive's write queue is stuck | Every few minutes, when the archive is on |
 | `build-snapshots` | Builds each tenant's common-set snapshot | Daily, when snapshot signing is on |
 | `prune-lake` | Applies the archive's retention | Daily |
 | `prune-prevalence` | Applies the prevalence retention | Daily |
