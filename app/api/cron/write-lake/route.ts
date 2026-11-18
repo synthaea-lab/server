@@ -2,16 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyCronRequest } from "@/lib/cron-auth";
 import { prisma } from "@/lib/prisma";
 import { lakeStoreFromEnv } from "@/lib/lake-env";
+import { positiveIntFromEnv } from "@/lib/env-int";
 import { DEFAULT_MAX_BATCHES, drainLakeQueue } from "@/lib/lake-writer";
-
-/** A positive integer from the environment, or `fallback` when unset. A value that is set but wrong throws: a typo must not silently mean "keep the default". */
-function positiveInt(name: string, fallback: number): number {
-  const raw = process.env[name];
-  if (raw === undefined || raw === "") return fallback;
-  const n = Number(raw);
-  if (!Number.isInteger(n) || n <= 0) throw new Error(`${name} must be a positive integer, got "${raw}"`);
-  return n;
-}
 
 /**
  * GET /api/cron/write-lake
@@ -32,7 +24,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "The telemetry lake is off (LAKE_DIR is not set)" }, { status: 503 });
     }
 
-    const maxBatches = positiveInt("LAKE_WRITER_MAX_BATCHES", DEFAULT_MAX_BATCHES);
+    const maxBatches = positiveIntFromEnv(process.env, "LAKE_WRITER_MAX_BATCHES", DEFAULT_MAX_BATCHES);
     const result = await drainLakeQueue(prisma, store, { maxBatches });
     return NextResponse.json({ ...result, maxBatches });
   } catch (error) {

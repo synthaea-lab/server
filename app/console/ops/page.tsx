@@ -6,6 +6,7 @@ import { loadRings, type RingStatus, type RolloutState } from "@/lib/rings";
 import { iocFeedSummary, type FleetStatus } from "@/lib/fleet-health";
 import { loadIngestHealth, type AgentIngestHealth } from "@/lib/ingest-stats";
 import { loadLakeBacklog, type LakeBacklog } from "@/lib/lake-backlog";
+import { DEFAULT_BACKLOG_MAX_AGE_MS } from "@/lib/lake-backlog-case";
 import { lakeEnabled } from "@/lib/lake-store";
 import RingControls from "@/components/RingControls";
 import { NON_ADMIN_NOTE } from "@/lib/ring-actions";
@@ -254,15 +255,14 @@ function IngestPanel({
   );
 }
 
-/** Past this age the oldest queued batch is flagged. A display threshold, not measured: the lake's lag was never timed. */
-const LAKE_BACKLOG_STALE_MS = 15 * 60 * 1000;
-
 /**
- * Telemetry archive queue (issue #4). Shown, not alerted on, like ingest health: the queue has no
- * bound yet and what happens at one is the owner's decision (ADR-0041).
+ * Telemetry archive queue (issue #4). The oldest batch is flagged past the age at which the
+ * `detect-lake-backlog` cron opens a case (`DEFAULT_BACKLOG_MAX_AGE_MS`, same `>` boundary; a
+ * `LAKE_BACKLOG_MAX_AGE_MINUTES` override applies to the case, not to this flag). The queue itself
+ * stays unbounded: ADR-0041.
  */
 function LakeBacklogPanel({ backlog }: { backlog: LakeBacklog }) {
-  const stale = backlog.oldestAgeMs !== null && backlog.oldestAgeMs >= LAKE_BACKLOG_STALE_MS;
+  const stale = backlog.oldestAgeMs !== null && backlog.oldestAgeMs > DEFAULT_BACKLOG_MAX_AGE_MS;
   return (
     <section className="mt-8" aria-label="Telemetry archive queue">
       <h3 className="mb-1 text-lg font-semibold text-gray-900">Telemetry archive queue</h3>
