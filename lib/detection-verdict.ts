@@ -8,6 +8,9 @@ import type { Prisma } from "@prisma/client";
  *
  * A verdict lags its detection: a detection not yet grouped, or grouped into a case nobody has
  * triaged, is not counted here, whatever it turns out to be.
+ *
+ * Nothing writes a case status yet (#12), so today this matches no detection. A fleet case's
+ * verdict also covers the detections joined to it after the verdict (#86).
  */
 export const analystMarkedFalsePositive: Prisma.DetectionWhereInput = {
   OR: [{ case: { status: "false_positive" } }, { fleetCase: { status: "false_positive" } }],

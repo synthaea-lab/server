@@ -121,8 +121,11 @@ is a `502`, never a different manifest.
   tenant and halts the canary's active release when its silent-agent rate exceeds 5 %, its
   false-positive count is more than twice prod's, or its detection count dropped more than 20 %.
   A false positive is a detection whose case or fleet case an analyst marked `false_positive`,
-  whatever its severity; a detection nobody has triaged yet is not counted. It opens a `high`
-  case and writes a `content.release.auto_halt` audit row with the metrics.
+  whatever its severity; a detection nobody has triaged yet is not counted, nor one triaged
+  more than a day after it fired (the window is on the detection's time). No route sets a case
+  status yet (#12), so until it lands the false-positive check never fires; and a fleet case's
+  verdict would also cover detections joined to it later (#86). It opens a `high` case and
+  writes a `content.release.auto_halt` audit row with the metrics.
 
 Halt and rollback are tenant `owner`/`admin` actions, serialized per tenant and ring by an
 advisory lock, and audited. The console's buttons call the same routes.
