@@ -485,6 +485,14 @@ model HuntRun {
   // Set when the run failed (e.g. the statement timeout); counts stay 0.
   error              String?
   trigger            String // manual | schedule
+  // Event-archive hunts (query.kind "events"): the newest matching events, typed columns only, at
+  // most HUNT_EVENT_SAMPLE_SIZE (what `EventRow` holds). Empty for a detection hunt, whose sample is
+  // `sampleDetectionIds`.
+  sampleEvents       Json      @default("[]") @map("sample_events")
+  // The archive had more matching events than one run reads (matchCount is then a floor), or more
+  // matching files than one run lists (the oldest days were not read).
+  truncated          Boolean   @default(false)
+  incomplete         Boolean   @default(false)
 
   hunt   Hunt   @relation(fields: [huntId], references: [id], onDelete: Cascade)
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)

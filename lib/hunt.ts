@@ -152,14 +152,20 @@ export type ExecuteOptions = {
   beforeQuery?: (tx: Prisma.TransactionClient) => Promise<unknown>;
 };
 
+/** A run that could not start its read for a reason the analyst can act on (the archive is off, its searches are busy): the message is written by this code and is shown as it is. */
+export class RunUnavailableError extends Error {}
+
 /**
  * What a failed run stores and the API returns. Only messages this module wrote are
  * passed through; anything else (a Prisma or driver error can carry table names and
  * connection details) becomes a generic line and goes to the server log instead.
  */
 export function describeRunError(error: unknown): string {
-  if (error instanceof HuntValidationError) return error.message;
+  if (error instanceof HuntValidationError || error instanceof RunUnavailableError) return error.message;
   const text = error instanceof Error ? error.message : "";
-  if (/statement timeout/i.test(text)) return "the search exceeded its time limit and was cancelled";
+  // An archive read has no SQL statement to cancel: its deadline is an AbortSignal that throws a TimeoutError.
+  if (/statement timeout/i.test(text) || (error instanceof Error && error.name === "TimeoutError")) {
+    return "the search exceeded its time limit and was cancelled";
+  }
   return "the run failed (see the server log)";
 }
