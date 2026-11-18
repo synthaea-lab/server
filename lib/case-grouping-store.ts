@@ -7,6 +7,7 @@ import {
   type OpenCase,
   type UngroupedDetection,
 } from "@/lib/case-grouping";
+import { ACTIVE_CASE_STATUSES } from "@/lib/hunt-search";
 
 /**
  * The database side of the detection-grouping cron (issue #50): read one tenant's ungrouped
@@ -31,18 +32,22 @@ export function loadUngrouped(tx: Prisma.TransactionClient, tenantId: string): P
   });
 }
 
-/** The tenant's open cases, each detection tagged with its grouping technique. */
+/**
+ * The tenant's active cases (`ACTIVE_CASE_STATUSES`: `open` or `investigating`), each detection tagged
+ * with its grouping technique. An `investigating` case still takes related detections: otherwise a new
+ * case would open beside the one an analyst is working (issue #85).
+ */
 export async function loadOpenCases(tx: Prisma.TransactionClient, tenantId: string): Promise<OpenCase[]> {
-  // Only `meta.techniques` is read for the evidence already in open cases: the rest of
+  // Only `meta.techniques` is read for the evidence already in active cases: the rest of
   // `meta` (attributions, further triggering events) is not needed to group.
   const listedRows = await tx.$queryRaw<{ id: string; techniques: unknown }[]>`
     SELECT d.id, d.meta->'techniques' AS techniques
     FROM detections d JOIN cases c ON c.id = d.case_id
-    WHERE c.tenant_id = ${tenantId} AND c.status = 'open'
+    WHERE c.tenant_id = ${tenantId} AND c.status = ANY(${[...ACTIVE_CASE_STATUSES]})
   `;
   const listedById = new Map(listedRows.map((row) => [row.id, row.techniques]));
   const cases = await tx.case.findMany({
-    where: { tenantId, status: "open" },
+    where: { tenantId, status: { in: [...ACTIVE_CASE_STATUSES] } },
     select: {
       id: true,
       severity: true,

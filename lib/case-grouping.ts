@@ -96,7 +96,7 @@ export interface UngroupedDetection {
   meta: unknown;
 }
 
-/** An open case and the evidence it already holds. */
+/** An active case (`open` or `investigating`) and the evidence it already holds. */
 export interface OpenCase {
   id: string;
   severity: string;
