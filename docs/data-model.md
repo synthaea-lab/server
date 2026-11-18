@@ -52,7 +52,7 @@ and a session's `activeOrganizationId` is used as the tenant id.
 | Model | One row per | Notes |
 | --- | --- | --- |
 | `Hunt` | Saved hunt | `query` is a validated, versioned structured query, never SQL. `version` increases on every change to the query. `scheduleMinutes` null means manual only. |
-| `HuntRun` | Run of a hunt | Append-only. The query as it ran, match and new-match counts, up to 100 sample detection ids, and an error when the run failed. The newest 100 runs per hunt are kept. |
+| `HuntRun` | Run of a hunt | Append-only. The query as it ran, match and new-match counts, up to 100 sample detection ids (a detection hunt) or the newest 50 events as typed columns (`sample_events`, a hunt over the event archive, with `truncated` and `incomplete` flags), and an error when the run failed. The newest 100 runs per hunt are kept. |
 
 ### Content and releases
 

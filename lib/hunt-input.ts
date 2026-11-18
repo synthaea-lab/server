@@ -5,11 +5,29 @@ import {
   parseHuntQuery,
   type HuntQuery,
 } from "@/lib/hunt";
+import { parseEventQuery, type EventQuery } from "@/lib/hunt-events";
+
+/**
+ * What a saved hunt's `query` column holds: a detection query (`HuntQuery`, no `kind`) or a query over
+ * the raw event archive (`EventQuery`, `kind: "events"`). The `kind` field tells them apart, and each
+ * is validated by its own parser, so a body that mixes the two is refused, not guessed at.
+ */
+export type SavedQuery = HuntQuery | EventQuery;
+
+export function isEventQuery(query: SavedQuery): query is EventQuery {
+  return "kind" in query && query.kind === "events";
+}
+
+/** Validates untrusted JSON as the query of a saved hunt, whichever source it names; throws `HuntValidationError`. */
+export function parseSavedHuntQuery(input: unknown): SavedQuery {
+  if (typeof input === "object" && input !== null && !Array.isArray(input) && "kind" in input) return parseEventQuery(input);
+  return parseHuntQuery(input);
+}
 
 export type HuntInput = {
   name?: string;
   description?: string | null;
-  query?: HuntQuery;
+  query?: SavedQuery;
   /** `null` clears the schedule (manual only). */
   scheduleMinutes?: number | null;
   active?: boolean;
@@ -46,7 +64,7 @@ export function parseHuntInput(body: unknown, partial: boolean): HuntInput {
     input.description = raw.description as string | null;
   }
   if (raw.query !== undefined || !partial) {
-    input.query = parseHuntQuery(raw.query);
+    input.query = parseSavedHuntQuery(raw.query);
   }
   if (raw.scheduleMinutes !== undefined) {
     const m = raw.scheduleMinutes;
@@ -65,13 +83,17 @@ export function parseHuntInput(body: unknown, partial: boolean): HuntInput {
 }
 
 /** True when two normalized queries are the same, whatever the key order they were sent in. */
-export function sameQuery(a: HuntQuery, b: HuntQuery): boolean {
-  const norm = (q: HuntQuery) =>
-    JSON.stringify({
-      ...q,
-      techniques: q.techniques ? [...q.techniques].sort() : undefined,
-      severities: q.severities ? [...q.severities].sort() : undefined,
-      agentIds: q.agentIds ? [...q.agentIds].sort() : undefined,
-    });
+export function sameQuery(a: SavedQuery, b: SavedQuery): boolean {
+  const norm = (q: SavedQuery) =>
+    JSON.stringify(
+      isEventQuery(q)
+        ? { ...q, types: q.types ? [...q.types].sort() : undefined, where: q.where ? Object.fromEntries(Object.entries(q.where).sort()) : undefined }
+        : {
+            ...q,
+            techniques: q.techniques ? [...q.techniques].sort() : undefined,
+            severities: q.severities ? [...q.severities].sort() : undefined,
+            agentIds: q.agentIds ? [...q.agentIds].sort() : undefined,
+          }
+    );
   return norm(a) === norm(b);
 }

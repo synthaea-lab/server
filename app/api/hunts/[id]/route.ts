@@ -2,8 +2,8 @@ import { dropHuntFromChannels } from "@/lib/notify/outbox";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenantMember } from "@/lib/admin-auth";
-import { HuntValidationError, parseHuntQuery, type HuntQuery } from "@/lib/hunt";
-import { parseHuntInput, sameQuery, type HuntInput } from "@/lib/hunt-input";
+import { HuntValidationError } from "@/lib/hunt";
+import { parseHuntInput, parseSavedHuntQuery, sameQuery, type HuntInput, type SavedQuery } from "@/lib/hunt-input";
 import { parseLimit } from "@/lib/http/query";
 
 type Params = { params: { id: string } };
@@ -13,9 +13,9 @@ type Params = { params: { id: string } };
  * ADR-0025 point 4 anticipates: a hunt kept from an older query version) counts as
  * different, so a PATCH carrying a valid query repairs the hunt instead of failing on it.
  */
-function queryDiffers(next: HuntQuery, stored: unknown): boolean {
+function queryDiffers(next: SavedQuery, stored: unknown): boolean {
   try {
-    return !sameQuery(next, parseHuntQuery(stored));
+    return !sameQuery(next, parseSavedHuntQuery(stored));
   } catch (error) {
     if (error instanceof HuntValidationError) return true;
     throw error;
