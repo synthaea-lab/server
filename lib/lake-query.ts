@@ -26,7 +26,7 @@
  * ingest received it, never re-serialised.
  */
 
-import { parquetReadObjects } from "hyparquet";
+import { parquetMetadata, parquetReadObjects } from "hyparquet";
 import { isNotFound, type LakeReader } from "@/lib/lake-store";
 
 export const MAX_RANGE_DAYS = 366;
@@ -84,6 +84,11 @@ export interface LakeRow {
   date: string;
   agentId: string;
   ts: Date;
+  /**
+   * When the flush wrote the row to the archive. A file written before the column existed has none:
+   * then it is `ts`, the best the file can say.
+   */
+  archivedAt: Date;
   comm: string | null;
   path: string | null;
   imagePath: string | null;
@@ -202,13 +207,18 @@ async function readPartition(
   const bytes = await reader.get(file.key, { signal });
   const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   const rows: LakeRow[] = [];
-  for (const r of (await parquetReadObjects({ file: buffer, columns: withEvent ? COLUMNS : COLUMNS.filter((c) => c !== "event") })) as Record<string, unknown>[]) {
+  // `archived_at` is read only from a file that has it: asking `hyparquet` for a column the file lacks throws.
+  const hasArchivedAt = parquetMetadata(buffer).schema.some((element) => element.name === "archived_at");
+  const wanted = [...COLUMNS, ...(hasArchivedAt ? ["archived_at"] : [])];
+  for (const r of (await parquetReadObjects({ file: buffer, columns: withEvent ? wanted : wanted.filter((c) => c !== "event") })) as Record<string, unknown>[]) {
     if (!tests.every(([column, value]) => r[column] === value)) continue;
+    const ts = r.ts instanceof Date ? r.ts : new Date(Number(r.ts));
     rows.push({
       type: file.type,
       date: file.date,
       agentId: String(r.agent_id),
-      ts: r.ts instanceof Date ? r.ts : new Date(Number(r.ts)),
+      ts,
+      archivedAt: r.archived_at instanceof Date ? r.archived_at : ts,
       comm: (r.comm as string | null) ?? null,
       path: (r.path as string | null) ?? null,
       imagePath: (r.image_path as string | null) ?? null,

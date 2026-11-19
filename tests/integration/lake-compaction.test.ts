@@ -64,6 +64,20 @@ const rowsOf = async (tenantId: string, from: string, to: string) =>
   (await queryLake(store, { tenantId, from, to, limit: 1000 })).rows.map((r) => r.event).sort();
 
 describe("lake compaction against Postgres", () => {
+  it("keeps each row's write time through a merge", async () => {
+    const { tenant, agent } = await setup();
+    const times: Date[] = [];
+    for (let i = 0; i < 3; i++) {
+      const at = new Date(NOW.getTime() - 2 * DAY - 3600_000 + i * 600_000);
+      times.push(at);
+      await flush(tenant.id, agent.id, 2, `w${i}`, 1, at.getTime());
+    }
+    await compactLake(prisma, io(), NOW, FEW);
+    expect(await files(`tenant=${tenant.id}/`)).toHaveLength(1);
+    const rows = (await queryLake(store, { tenantId: tenant.id, from: "2026-11-01", to: "2026-11-09", limit: 100 })).rows;
+    expect(rows.map((r) => r.archivedAt.getTime()).sort()).toEqual(times.map((t) => t.getTime()).sort());
+  });
+
   it("merges the small files of a closed day into one and loses no row", async () => {
     const { tenant, agent } = await setup();
     for (let i = 0; i < 4; i++) await flush(tenant.id, agent.id, 2, `f${i}`);
@@ -206,7 +220,7 @@ describe("lake compaction against Postgres", () => {
     // A drain that wrote its file and crashed before deleting its batches: the batch still carries the flushId.
     const flushId = "0b6f7c1e-3d2a-4c55-9a1e-2f7a5d9c4b10";
     const at = new Date(NOW.getTime() - 2 * DAY - 3600_000);
-    const row: LakeRow = { agentId: agent.id, at, comm: "bash", path: null, imagePath: "/p/open/0", daddr: null, query: null, sha256: null, event: "open-flush-row" };
+    const row: LakeRow = { agentId: agent.id, at, archivedAt: at, comm: "bash", path: null, imagePath: "/p/open/0", daddr: null, query: null, sha256: null, event: "open-flush-row" };
     const openKey = lakeKey(tenant.id, "2026-11-07", "exec", flushId.replace(/-/g, ""));
     await store.put(openKey, encodeParquet([row]));
     await prisma.lakeBatch.create({ data: { tenantId: tenant.id, agentId: agent.id, receivedAt: at, events: [], eventCount: 0, flushId } });
