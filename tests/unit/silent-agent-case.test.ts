@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import { ACTIVE_CASE_STATUSES, CASE_STATUSES } from "@/lib/hunt-search";
 import {
   caseNamesAgent,
-  findOpenCasesNamingAgents,
-  findOpenSilentCases,
+  findActiveCasesNamingAgents,
+  findActiveSilentCases,
   silentCaseDescription,
   silentCaseTitle,
 } from "@/lib/silent-agent-case";
@@ -30,23 +31,62 @@ const fakeDb = <T>(rows: T[]) => {
   return { db: { case: { findMany } } as never, findMany };
 };
 
-describe("cron: findOpenCasesNamingAgents and caseNamesAgent", () => {
+describe("which cases count as an existing silent-agent case", () => {
+  // #83: the cron and the notifier searched `open` only, so a case an analyst had moved to
+  // `investigating` stopped suppressing the next run and a new `high` case opened every minute.
+  it("counts the non-terminal statuses, not the closed ones", () => {
+    expect([...ACTIVE_CASE_STATUSES]).toEqual(["open", "investigating"]);
+    // Every status of the case workflow is either active or in this explicit closed list: a new
+    // status in `CASE_STATUSES` fails here until somebody decides which it is.
+    const closed = ["resolved", "false_positive"];
+    const active = new Set<string>(ACTIVE_CASE_STATUSES);
+    const unclassified = CASE_STATUSES.filter((st) => !active.has(st) && !closed.includes(st));
+    expect(unclassified).toEqual([]);
+    // And the closed list names real statuses (a renamed status cannot linger in it).
+    expect(closed.filter((st) => !(CASE_STATUSES as readonly string[]).includes(st))).toEqual([]);
+    expect(CASE_STATUSES.filter((st) => !active.has(st))).toEqual(closed);
+  });
+
+  it("both lookups ask for the active statuses, so an investigating case suppresses", async () => {
+    const cases = [
+      { id: "c-inv", status: "investigating", title: "Agent Silent: web-01", description: d("enr-1") },
+      { id: "c-res", status: "resolved", title: "Agent Silent: web-02", description: d("enr-2") },
+    ];
+    // A db that applies the status filter the way Prisma would.
+    const findMany = vi.fn(async (args: { where: { status: { in: string[] } } }) =>
+      cases.filter((c) => args.where.status.in.includes(c.status))
+    );
+    const db = { case: { findMany } } as never;
+
+    const agents = [
+      { id: "a-1", enrollmentId: "enr-1" },
+      { id: "a-2", enrollmentId: "enr-2" },
+    ];
+    const named = await findActiveCasesNamingAgents(db, "t-1", agents);
+    expect(agents.filter((a) => named.some((c) => caseNamesAgent(c, a))).map((a) => a.id)).toEqual(["a-1"]);
+
+    const links = await findActiveSilentCases(db, "t-1", ["enr-1", "enr-2"]);
+    expect(Object.fromEntries(links)).toEqual({ "enr-1": { id: "c-inv" } });
+  });
+});
+
+describe("cron: findActiveCasesNamingAgents and caseNamesAgent", () => {
   const agent = { id: "a-1", enrollmentId: "enr-1" };
 
   it("does not query when there is nothing to look up", async () => {
     const { db, findMany } = fakeDb([]);
-    expect(await findOpenCasesNamingAgents(db, "t-1", [])).toEqual([]);
+    expect(await findActiveCasesNamingAgents(db, "t-1", [])).toEqual([]);
     expect(findMany).not.toHaveBeenCalled();
   });
 
   it("asks once, with the cron's per-agent conditions joined by OR", async () => {
     const { db, findMany } = fakeDb([]);
-    await findOpenCasesNamingAgents(db, "t-1", [agent, { id: "a-2", enrollmentId: "enr-2" }]);
+    await findActiveCasesNamingAgents(db, "t-1", [agent, { id: "a-2", enrollmentId: "enr-2" }]);
     expect(findMany).toHaveBeenCalledTimes(1);
     expect(findMany).toHaveBeenCalledWith({
       where: {
         tenantId: "t-1",
-        status: "open",
+        status: { in: ["open", "investigating"] },
         OR: [
           { title: { contains: "a-1" } },
           { description: { contains: "Enrollment ID: enr-1" } },
@@ -72,21 +112,21 @@ describe("cron: findOpenCasesNamingAgents and caseNamesAgent", () => {
   });
 });
 
-describe("notifier: findOpenSilentCases", () => {
+describe("notifier: findActiveSilentCases", () => {
   it("does not query when there is nothing to look up", async () => {
     const { db, findMany } = fakeDb([]);
-    expect((await findOpenSilentCases(db, "t-1", [])).size).toBe(0);
+    expect((await findActiveSilentCases(db, "t-1", [])).size).toBe(0);
     expect(findMany).not.toHaveBeenCalled();
   });
 
-  it("asks once for every enrollment id, open `Agent Silent:` cases of the tenant only", async () => {
+  it("asks once for every enrollment id, active `Agent Silent:` cases of the tenant only", async () => {
     const { db, findMany } = fakeDb([]);
-    await findOpenSilentCases(db, "t-1", ["enr-1", "enr-2"]);
+    await findActiveSilentCases(db, "t-1", ["enr-1", "enr-2"]);
     expect(findMany).toHaveBeenCalledTimes(1);
     expect(findMany).toHaveBeenCalledWith({
       where: {
         tenantId: "t-1",
-        status: "open",
+        status: { in: ["open", "investigating"] },
         title: { startsWith: "Agent Silent:" },
         OR: [
           { description: { contains: "Enrollment ID: enr-1" } },
@@ -103,13 +143,13 @@ describe("notifier: findOpenSilentCases", () => {
       { id: "c-second", description: d("enr-1") },
       { id: "c-none", description: null },
     ]);
-    const found = await findOpenSilentCases(db, "t-1", ["enr-1", "enr-2"]);
+    const found = await findActiveSilentCases(db, "t-1", ["enr-1", "enr-2"]);
     expect(Object.fromEntries(found)).toEqual({ "enr-1": { id: "c-first" } });
   });
 
   it("matches by substring, so enr-10's case is found for enr-1 (current behavior)", async () => {
     const { db } = fakeDb([{ id: "c-10", description: d("enr-10") }]);
-    const found = await findOpenSilentCases(db, "t-1", ["enr-1"]);
+    const found = await findActiveSilentCases(db, "t-1", ["enr-1"]);
     expect(Object.fromEntries(found)).toEqual({ "enr-1": { id: "c-10" } });
   });
 });

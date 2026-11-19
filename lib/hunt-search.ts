@@ -41,6 +41,12 @@ const TITLE_MAX = 200;
 
 export const CASE_STATUSES = ["open", "investigating", "resolved", "false_positive"] as const;
 export type CaseStatus = (typeof CASE_STATUSES)[number];
+/**
+ * The statuses of a case somebody is still dealing with. `Case.status` is a plain string column,
+ * so `satisfies` is what makes a typo here a compile error instead of a lookup that silently
+ * matches nothing. A status of `CASE_STATUSES` that is not listed here is closed.
+ */
+export const ACTIVE_CASE_STATUSES = ["open", "investigating"] as const satisfies readonly CaseStatus[];
 export const CASE_QUERY_VERSION = 1;
 
 /** A query over cases: the window is on the case's creation time. */
