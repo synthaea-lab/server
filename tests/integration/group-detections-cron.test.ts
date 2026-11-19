@@ -169,6 +169,46 @@ describe("GET /api/cron/group-detections", () => {
     expect(cases[0].detections).toHaveLength(3);
   });
 
+  it("attaches a later related detection to an investigating case, not a new one", async () => {
+    const tenant = await createTestTenant();
+    const agent = await createTestAgent(tenant.id);
+    const t0 = new Date();
+    await createTestDetection(tenant.id, agent.id, { technique: "T1059.001", severity: "medium", timestamp: t0 });
+    await GET(cronRequest());
+    await prisma.case.updateMany({ where: { tenantId: tenant.id }, data: { status: "investigating" } });
+
+    await createTestDetection(tenant.id, agent.id, {
+      technique: "T1059.003",
+      severity: "high",
+      timestamp: new Date(t0.getTime() + 60_000),
+    });
+    const body = await (await GET(cronRequest())).json();
+
+    expect(body.casesCreated).toBe(0);
+    const cases = await prisma.case.findMany({ where: { tenantId: tenant.id }, include: { detections: true } });
+    expect(cases).toHaveLength(1);
+    expect(cases[0].status).toBe("investigating");
+    expect(cases[0].severity).toBe("high");
+    expect(cases[0].detections).toHaveLength(2);
+  });
+
+  it("does not attach to a resolved or false_positive case", async () => {
+    const tenant = await createTestTenant();
+    const agent = await createTestAgent(tenant.id);
+    const t0 = new Date();
+    await createTestDetection(tenant.id, agent.id, { technique: "T1059.001", timestamp: t0 });
+    await GET(cronRequest());
+    await prisma.case.updateMany({ where: { tenantId: tenant.id }, data: { status: "resolved" } });
+
+    await createTestDetection(tenant.id, agent.id, {
+      technique: "T1059.003",
+      timestamp: new Date(t0.getTime() + 60_000),
+    });
+    const body = await (await GET(cronRequest())).json();
+
+    expect(body.casesCreated).toBe(1);
+  });
+
   it("titles a new case after its first detection's technique column and agent hostname", async () => {
     const tenant = await createTestTenant();
     const agent = await createTestAgent(tenant.id, undefined, { hostname: "ws-042" });
