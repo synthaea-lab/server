@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SEVERITIES } from "@/lib/hunt";
+import { EVENT_FILTERS } from "@/lib/hunt-events";
 import {
   EMPTY_HUNT_FORM,
   huntFormToBody,
@@ -93,6 +94,40 @@ export function HuntForm({
       <fieldset className="space-y-4 rounded-lg border border-gray-200 p-4">
         <legend className="px-1 text-sm font-semibold text-gray-900">Query</legend>
         <div>
+          <label className={LABEL} htmlFor="hunt-source">Search in</label>
+          <select id="hunt-source" className={INPUT} value={values.source}
+            onChange={(e) => set("source", e.target.value === "events" ? "events" : "detections")}>
+            <option value="detections">Detections</option>
+            <option value="events">Event archive (telemetry lake)</option>
+          </select>
+          <p className={HINT}>The archive holds every event the agents sent, for the tenant&apos;s retention. It is read when the hunt runs; it is off when the telemetry lake is not configured.</p>
+        </div>
+        {values.source === "events" ? (
+          <>
+        <div>
+          <label className={LABEL} htmlFor="hunt-days">Look back (UTC days)</label>
+          <input id="hunt-days" className={INPUT} inputMode="numeric" value={values.lastDays}
+            onChange={(e) => set("lastDays", e.target.value)} />
+          <p className={HINT}>Whole UTC days including today (1 is today only), from the start of each run. 1 to 90.</p>
+        </div>
+        <div>
+          <label className={LABEL} htmlFor="hunt-types">Event types</label>
+          <input id="hunt-types" className={INPUT} placeholder="exec, dns_query" value={values.types}
+            onChange={(e) => set("types", e.target.value)} />
+          <p className={HINT}>Lowercase names as the archive stores them. Empty: every type.</p>
+        </div>
+        {EVENT_FILTERS.map((name) => (
+          <div key={name}>
+            <label className={LABEL} htmlFor={`hunt-where-${name}`}>{name}</label>
+            <input id={`hunt-where-${name}`} className={`${INPUT} font-mono`} value={values.where[name]}
+              onChange={(e) => set("where", { ...values.where, [name]: e.target.value })} />
+          </div>
+        ))}
+        <p className={HINT}>Exact matches on the event&apos;s typed columns, all of which must hold. Empty: no filter. A run counts up to 1000 events and keeps the newest 50.</p>
+          </>
+        ) : (
+          <>
+        <div>
           <label className={LABEL} htmlFor="hunt-hours">Look back (hours)</label>
           <input id="hunt-hours" className={INPUT} inputMode="numeric" value={values.lastHours}
             onChange={(e) => set("lastHours", e.target.value)} />
@@ -133,6 +168,8 @@ export function HuntForm({
             onChange={(e) => set("text", e.target.value)} />
           <p className={HINT}>A literal, case-insensitive substring of the detection’s event, 3 to 256 characters. Empty: no text filter.</p>
         </div>
+          </>
+        )}
       </fieldset>
 
       <div>

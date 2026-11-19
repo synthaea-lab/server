@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenantMember } from "@/lib/admin-auth";
-import { HuntValidationError, parseHuntQuery } from "@/lib/hunt";
+import { HuntValidationError } from "@/lib/hunt";
+import { isEventQuery, parseSavedHuntQuery } from "@/lib/hunt-input";
 import { draftRuleFromHunt, parseGraduationRequest } from "@/lib/hunt-graduation";
 import { draftIocSetFromHunt, graduationKind, iocObservations, parseIocGraduationRequest } from "@/lib/hunt-ioc-draft";
 import { countReportingHosts, getPrevalenceBatch, lookedUpKeys, prevalenceKey } from "@/lib/prevalence";
@@ -44,11 +45,19 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     // A stored query that no longer parses (ADR-0025 point 4) is the hunt's fault, not the request's.
     let query;
     try {
-      query = parseHuntQuery(hunt.query);
+      query = parseSavedHuntQuery(hunt.query);
     } catch (error) {
       if (!(error instanceof HuntValidationError)) throw error;
       return NextResponse.json(
         { error: "The hunt's stored query no longer parses; edit the hunt first", problems: [error.message] },
+        { status: 422 }
+      );
+    }
+    // A draft rule or IOC set is built from detections; an event hunt's sample is events, which carry
+    // no rule, severity or stored detection. Refused with the reason, not drafted from nothing.
+    if (isEventQuery(query)) {
+      return NextResponse.json(
+        { error: "A hunt over the event archive cannot be graduated: drafts are made from detections", problems: ["event hunt"] },
         { status: 422 }
       );
     }

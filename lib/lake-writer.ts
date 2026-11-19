@@ -68,6 +68,12 @@ function column(value: unknown): string | null {
 export type LakeRow = {
   agentId: string;
   at: Date;
+  /**
+   * When the flush wrote the row to the archive (the server's clock, never the agent's): what a saved
+   * hunt's "new since the last run" counts on. Not the batch's `received_at`: a batch can wait in the
+   * queue, and a run that starts in between cannot see it.
+   */
+  archivedAt: Date;
   comm: string | null;
   path: string | null;
   imagePath: string | null;
@@ -159,13 +165,14 @@ export function eventSources(raw: string): string[] | null {
  * `source` is the event's text as received; without it (a queue row written before the text was
  * kept) the event is serialised from the parsed object, which rounds integers above 2^53.
  */
-export function lakeRow(agentId: string, event: Record<string, unknown>, receivedAt: Date, source?: string): LakeRow {
+export function lakeRow(agentId: string, event: Record<string, unknown>, receivedAt: Date, source?: string, archivedAt: Date = receivedAt): LakeRow {
   const meta = event.meta;
   const comm = typeof meta === "object" && meta !== null ? (meta as Record<string, unknown>).comm : undefined;
   const sha = typeof event.sha256 === "string" ? event.sha256.toLowerCase() : "";
   return {
     agentId,
     at: eventTime(event, receivedAt),
+    archivedAt,
     comm: column(comm),
     path: column(event.path),
     imagePath: column(event.image_path),
@@ -183,6 +190,7 @@ export function encodeParquet(rows: LakeRow[]): Uint8Array {
       columnData: [
         { name: "agent_id", data: data((r) => r.agentId), type: "STRING" },
         { name: "ts", data: data((r) => r.at), type: "TIMESTAMP" },
+        { name: "archived_at", data: data((r) => r.archivedAt), type: "TIMESTAMP" },
         { name: "comm", data: data((r) => r.comm), type: "STRING" },
         { name: "path", data: data((r) => r.path), type: "STRING" },
         { name: "image_path", data: data((r) => r.imagePath), type: "STRING" },
@@ -339,7 +347,7 @@ async function writeFlush(
             continue;
           }
           const event = raw as Record<string, unknown>;
-          const row = lakeRow(batch.agentId, event, batch.receivedAt, source);
+          const row = lakeRow(batch.agentId, event, batch.receivedAt, source, now);
           const type = typeSegment(event.type);
           const day = dayOf(row.at);
           if (isPastRetention(day, retentionOf.get(batch.tenantId) ?? 0, now)) {

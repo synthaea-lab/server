@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireConsoleTenant } from "@/lib/console-session";
 import { NoOrganization } from "@/components/NoOrganization";
-import { HUNT_RUNS_KEPT } from "@/lib/hunt";
+import { HUNT_RUN_HISTORY_SELECT, HUNT_RUNS_KEPT } from "@/lib/hunt";
 import {
   describeQuery,
   describeSchedule,
@@ -14,6 +14,9 @@ import {
 } from "@/lib/hunt-view";
 import { RunHuntButton } from "@/components/RunHuntButton";
 import { GraduateHuntButton } from "@/components/GraduateHuntButton";
+import { EventTable } from "@/components/EventTable";
+import { isEventQuery, parseSavedHuntQuery } from "@/lib/hunt-input";
+import type { EventRow } from "@/lib/hunt-events-search";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -30,8 +33,23 @@ export default async function HuntPage({ params }: { params: { id: string } }) {
     where: { huntId: hunt.id, tenantId },
     orderBy: { startedAt: "desc" },
     take: HUNT_RUNS_KEPT,
+    // The table shows counts only; the one sample the page shows is read below.
+    select: HUNT_RUN_HISTORY_SELECT,
   });
   const now = new Date();
+  const isEventHunt = (() => {
+    try {
+      return isEventQuery(parseSavedHuntQuery(hunt.query));
+    } catch {
+      return false;
+    }
+  })();
+  // An event hunt's latest run keeps the events it sampled; show them here, so the page says what the run saw.
+  // Only the latest run: when it failed there is nothing to show, not an older run's events under a newer label.
+  const latest = runs[0];
+  const sampled = isEventHunt && latest && latest.finishedAt && !latest.error ? latest : undefined;
+  const sampledRow = sampled ? await prisma.huntRun.findFirst({ where: { id: sampled.id, tenantId }, select: { sampleEvents: true } }) : null;
+  const sampleEvents = sampledRow && Array.isArray(sampledRow.sampleEvents) ? (sampledRow.sampleEvents as unknown as EventRow[]) : [];
 
   return (
     <div>
@@ -80,7 +98,11 @@ export default async function HuntPage({ params }: { params: { id: string } }) {
         </div>
       </dl>
 
-      <GraduateHuntButton huntId={hunt.id} />
+      {isEventHunt ? (
+        <p className="mb-6 text-xs text-gray-500">A hunt over the event archive cannot be graduated: rule and IOC drafts are made from detections.</p>
+      ) : (
+        <GraduateHuntButton huntId={hunt.id} />
+      )}
 
       <h3 className="mb-2 text-lg font-semibold text-gray-900">History</h3>
       {runs.length === 0 ? (
@@ -114,13 +136,27 @@ export default async function HuntPage({ params }: { params: { id: string } }) {
                     <td className="px-4 py-2 text-gray-700">{run.trigger}</td>
                     <td className="px-4 py-2 text-gray-700">v{run.queryVersion}</td>
                     <td className="px-4 py-2 text-gray-700">{formatDuration(run) ?? "–"}</td>
-                    <td className="px-4 py-2 text-right text-gray-900">{state === "ok" ? run.matchCount : "–"}</td>
+                    <td className="px-4 py-2 text-right text-gray-900" title={run.incomplete ? "The oldest days were not read" : undefined}>
+                      {state === "ok" ? `${run.matchCount}${run.truncated ? "+" : ""}${run.incomplete ? " *" : ""}` : "–"}
+                    </td>
                     <td className="px-4 py-2 text-right text-gray-900">{state === "ok" ? run.newMatchCount : "–"}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+        </div>
+      )}
+      {sampleEvents.length > 0 && (
+        <div className="mt-6">
+          <h3 className="mb-2 text-lg font-semibold text-gray-900">Events of the latest run</h3>
+          <p className="mb-2 text-xs text-gray-500">
+            Run started {formatTime(sampled!.startedAt)}, query v{sampled!.queryVersion}.
+            The newest {sampleEvents.length} of {sampled?.matchCount}{sampled?.truncated ? "+" : ""} events, typed columns only.
+            A count with + is a floor (a run counts up to 1000); * means the archive had more files than one run reads, so the oldest days were not read.
+            New counts events written to the archive after the previous run started.
+          </p>
+          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white"><EventTable rows={sampleEvents} /></div>
         </div>
       )}
       <p className="mt-3 text-xs text-gray-500">

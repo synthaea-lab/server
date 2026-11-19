@@ -2,7 +2,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { HUNT_STATEMENT_TIMEOUT_MS, HUNT_TRANSACTION_TIMEOUT_MS } from "@/lib/hunt";
 import { eventWindow, type EventQuery } from "@/lib/hunt-events";
 import { SEARCH_PAGE_SIZE, admitSearch } from "@/lib/hunt-search";
-import { queryLake } from "@/lib/lake-query";
+import { MAX_ROWS, queryLake, type LakeRow } from "@/lib/lake-query";
 import type { EventArchive } from "@/lib/lake-store";
 
 /**
@@ -65,6 +65,21 @@ export type EventSearchOptions = {
 
 const cut = (value: string | null): string | null => (value === null ? null : value.slice(0, FIELD_MAX));
 
+/** A lake row as the search and a run's sample hold it: the typed columns only, each cut to `FIELD_MAX`. */
+function toEventRow(r: LakeRow): EventRow {
+  return {
+    type: r.type,
+    timestamp: r.ts.toISOString(),
+    agentId: r.agentId.slice(0, FIELD_MAX),
+    comm: cut(r.comm),
+    path: cut(r.path),
+    imagePath: cut(r.imagePath),
+    daddr: cut(r.daddr),
+    query: cut(r.query),
+    sha256: cut(r.sha256),
+  };
+}
+
 /**
  * Runs one search of the archive for `tenantId` as of `now`. `archive` says what can be read: `off`
  * is `lake_off` (the API answers 503), and `no_reader` is `no_reader` (the lake is on but its store
@@ -109,19 +124,92 @@ export async function searchEventsWithinLimit(
         incomplete: result.filesSkipped > 0,
         from,
         to,
-        rows: result.rows.map((r) => ({
-          type: r.type,
-          timestamp: r.ts.toISOString(),
-          agentId: r.agentId.slice(0, FIELD_MAX),
-          comm: cut(r.comm),
-          path: cut(r.path),
-          imagePath: cut(r.imagePath),
-          daddr: cut(r.daddr),
-          query: cut(r.query),
-          sha256: cut(r.sha256),
-        })),
+        rows: result.rows.map(toEventRow),
       };
       return { status: "ok", page } as const;
+    },
+    { timeout: timeoutMs + (HUNT_TRANSACTION_TIMEOUT_MS - HUNT_STATEMENT_TIMEOUT_MS) }
+  );
+}
+
+/** Events a run keeps as its sample: one page, as the search shows. */
+export const HUNT_EVENT_SAMPLE_SIZE = SEARCH_PAGE_SIZE;
+
+/** What a run of a saved event hunt records. */
+export type EventHuntResult = {
+  /** Events matching in the window, counted up to `MAX_ROWS` (1000): a floor when `truncated`. */
+  matchCount: number;
+  /** Of those, written to the archive after `newSince` (all of them on the first run). */
+  newMatchCount: number;
+  /** The newest matches, at most `HUNT_EVENT_SAMPLE_SIZE`. */
+  sample: EventRow[];
+  /** More events matched than a run reads: `matchCount` is a floor. */
+  truncated: boolean;
+  /** The archive had more matching files than one run lists, so the oldest days were not read. */
+  incomplete: boolean;
+};
+
+export type EventHuntOutcome = { status: "ok"; result: EventHuntResult } | { status: "busy" } | { status: "lake_off" } | { status: "no_reader" };
+
+/**
+ * Runs a saved event hunt for `tenantId` as of `now`: the same read, under the same three bounds, as
+ * {@link searchEventsWithinLimit} (the deadline as an `AbortSignal`, one of the tenant's search slots,
+ * typed columns only each cut to `FIELD_MAX`), but counting. It reads up to `MAX_ROWS` rows to give a
+ * count and keeps only `HUNT_EVENT_SAMPLE_SIZE` of them, so a run's row stays small however many
+ * events matched. `newSince` is the previous run's start: an event is new when the flush wrote it to the
+ * archive after that start (`archivedAt`, the server's clock), not by the agent's own stamp. The stamp is
+ * the agent's value: counting on it lost an event that reached the archive after a run but was stamped
+ * before it (a drain every 5 minutes, a host reconnecting with a backlog), and counted one stamped later
+ * than now on every run until the clock passed it. `archivedAt` is also held to `now`, which only matters
+ * for a file written before the column existed (its rows read as `archivedAt` = `ts`, and a stamp can be
+ * a day ahead). Not covered: a flush that began before a run's start and put its file after that run read
+ * the archive is counted by neither run (the flush's duration, seconds).
+ */
+export async function runEventHuntWithinLimit(
+  prisma: PrismaClient,
+  archive: EventArchive,
+  tenantId: string,
+  query: EventQuery,
+  now: Date,
+  newSince: Date | null,
+  options: EventSearchOptions = {}
+): Promise<EventHuntOutcome> {
+  if (archive.state === "off") return { status: "lake_off" };
+  if (archive.state === "no_reader") return { status: "no_reader" };
+  const { reader } = archive;
+  const timeoutMs = options.timeoutMs ?? HUNT_STATEMENT_TIMEOUT_MS;
+  const { from, to } = eventWindow(query, now);
+  return prisma.$transaction(
+    async (tx) => {
+      if (!(await admitSearch(tx, tenantId))) return { status: "busy" } as const;
+      await options.beforeRead?.(tx);
+      const signal = AbortSignal.timeout(timeoutMs);
+      const found = await queryLake(reader, {
+        tenantId,
+        from,
+        to,
+        types: query.types,
+        where: query.where,
+        limit: MAX_ROWS,
+        order: "desc",
+        includeEvent: false,
+        signal,
+      });
+      signal.throwIfAborted();
+      const fresh =
+        newSince === null
+          ? found.rows.length
+          : found.rows.filter((r) => r.archivedAt.getTime() > newSince.getTime() && r.archivedAt.getTime() <= now.getTime()).length;
+      return {
+        status: "ok",
+        result: {
+          matchCount: found.rows.length,
+          newMatchCount: fresh,
+          sample: found.rows.slice(0, HUNT_EVENT_SAMPLE_SIZE).map(toEventRow),
+          truncated: found.truncated,
+          incomplete: found.filesSkipped > 0,
+        },
+      } as const;
     },
     { timeout: timeoutMs + (HUNT_TRANSACTION_TIMEOUT_MS - HUNT_STATEMENT_TIMEOUT_MS) }
   );
