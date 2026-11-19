@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { organization } from "better-auth/plugins";
 import { prisma } from "@/lib/prisma";
+import { authTrustedOrigins } from "@/lib/env";
 
 export const auth = betterAuth({
   // The Prisma client the rest of the server uses; the auth tables are Prisma models
@@ -23,10 +24,8 @@ export const auth = betterAuth({
       disableOrganizationDeletion: true,
     }),
   ],
-  trustedOrigins: [
-    "http://localhost:3000",
-    "http://localhost:8443",
-  ],
+  // `AUTH_TRUSTED_ORIGINS` sets them; unset, the two localhost origins of a development console.
+  trustedOrigins: authTrustedOrigins(process.env),
 });
 
 export type Session = typeof auth.$Infer.Session;
