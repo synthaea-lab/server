@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyCronRequest } from "@/lib/cron-auth";
 import { prisma } from "@/lib/prisma";
-import { positiveIntFromEnv } from "@/lib/env-int";
+import { positiveIntFromEnv } from "@/lib/env";
 import { pruneIngestStats } from "@/lib/ingest-stats";
 import {
   DEFAULT_MAX_ROWS_PER_TENANT,

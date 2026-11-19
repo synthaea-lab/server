@@ -60,7 +60,7 @@ its `agents` row exists.
 Users sign in with email and password through [better-auth](https://www.better-auth.com)
 ([`lib/auth.ts`](../lib/auth.ts)), mounted at `/api/auth/*`. Sessions are cookies signed with
 `BETTER_AUTH_SECRET`. better-auth refuses a request that carries a session cookie without an
-`Origin` it trusts; the trusted origins are set in `lib/auth.ts`.
+`Origin` it trusts; the trusted origins are `AUTH_TRUSTED_ORIGINS` (`lib/env.ts`), the two localhost origins of a development console when unset.
 
 Tenancy uses better-auth's organization plugin. An organization and its tenant share one id, and
 a session's `activeOrganizationId` is the tenant the user acts in. Users cannot create

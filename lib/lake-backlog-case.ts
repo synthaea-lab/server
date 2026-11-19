@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
-import { positiveIntFromEnv } from "@/lib/env-int";
+import { positiveIntFromEnv } from "@/lib/env";
 import type { CaseStatus } from "@/lib/hunt-search";
 import type { LakeBacklog } from "@/lib/lake-backlog";
 

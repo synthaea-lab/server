@@ -3,28 +3,18 @@ import { verifyCronRequest } from "@/lib/cron-auth";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_SNAPSHOT_PARAMS, publishCommonSetSnapshot, type SnapshotParams } from "@/lib/snapshot-publish";
 import { loadSnapshotSigner } from "@/lib/snapshot-manifest";
-
-/** A positive number from the environment, or `fallback` when unset; a value that is set but wrong throws. */
-function numberFromEnv(name: string, fallback: number, integer: boolean): number {
-  const raw = process.env[name];
-  if (raw === undefined || raw === "") return fallback;
-  const n = Number(raw);
-  if (!Number.isFinite(n) || n <= 0 || (integer && !Number.isInteger(n))) {
-    throw new Error(`${name} must be a positive ${integer ? "integer" : "number"}, got "${raw}"`);
-  }
-  return n;
-}
+import { positiveNumberFromEnv } from "@/lib/env";
 
 /** Provisional starting points, set from the environment until slice 6 calibrates them. */
 function paramsFromEnv(): SnapshotParams {
   const d = DEFAULT_SNAPSHOT_PARAMS;
   return {
-    minHosts: numberFromEnv("SNAPSHOT_MIN_HOSTS", d.minHosts, true),
-    minHostsCovered: numberFromEnv("SNAPSHOT_MIN_HOSTS_COVERED", d.minHostsCovered, true),
-    falsePositiveRate: numberFromEnv("SNAPSHOT_FALSE_POSITIVE_RATE", d.falsePositiveRate, false),
-    maxBytes: numberFromEnv("SNAPSHOT_MAX_BYTES", d.maxBytes, true),
-    maxEntries: numberFromEnv("SNAPSHOT_MAX_ENTRIES", d.maxEntries, true),
-    minEntryFraction: numberFromEnv("SNAPSHOT_MIN_ENTRY_FRACTION", d.minEntryFraction, false),
+    minHosts: positiveNumberFromEnv(process.env, "SNAPSHOT_MIN_HOSTS", d.minHosts, { integer: true }),
+    minHostsCovered: positiveNumberFromEnv(process.env, "SNAPSHOT_MIN_HOSTS_COVERED", d.minHostsCovered, { integer: true }),
+    falsePositiveRate: positiveNumberFromEnv(process.env, "SNAPSHOT_FALSE_POSITIVE_RATE", d.falsePositiveRate, { integer: false }),
+    maxBytes: positiveNumberFromEnv(process.env, "SNAPSHOT_MAX_BYTES", d.maxBytes, { integer: true }),
+    maxEntries: positiveNumberFromEnv(process.env, "SNAPSHOT_MAX_ENTRIES", d.maxEntries, { integer: true }),
+    minEntryFraction: positiveNumberFromEnv(process.env, "SNAPSHOT_MIN_ENTRY_FRACTION", d.minEntryFraction, { integer: false }),
   };
 }
 
