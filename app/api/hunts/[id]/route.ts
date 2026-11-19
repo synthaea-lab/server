@@ -2,7 +2,7 @@ import { dropHuntFromChannels } from "@/lib/notify/outbox";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenantMember } from "@/lib/admin-auth";
-import { HuntValidationError } from "@/lib/hunt";
+import { HUNT_RUN_HISTORY_SELECT, HuntValidationError } from "@/lib/hunt";
 import { parseHuntInput, parseSavedHuntQuery, sameQuery, type HuntInput, type SavedQuery } from "@/lib/hunt-input";
 import { parseLimit } from "@/lib/http/query";
 
@@ -53,6 +53,8 @@ export async function GET(req: NextRequest, { params }: Params) {
       where: { huntId: hunt.id, tenantId },
       orderBy: { startedAt: "desc" },
       take: parseLimit(new URL(req.url).searchParams, { fallback: 20, max: 100 }),
+      // A run's event sample is up to 50 rows (about 100 KB): the history lists runs, not what each saw.
+      select: HUNT_RUN_HISTORY_SELECT,
     });
     return NextResponse.json({ hunt, runs });
   } catch (error) {

@@ -139,7 +139,7 @@ export const HUNT_EVENT_SAMPLE_SIZE = SEARCH_PAGE_SIZE;
 export type EventHuntResult = {
   /** Events matching in the window, counted up to `MAX_ROWS` (1000): a floor when `truncated`. */
   matchCount: number;
-  /** Of those, with an event time after `newSince` (all of them on the first run). */
+  /** Of those, written to the archive after `newSince` (all of them on the first run). */
   newMatchCount: number;
   /** The newest matches, at most `HUNT_EVENT_SAMPLE_SIZE`. */
   sample: EventRow[];
@@ -156,8 +156,14 @@ export type EventHuntOutcome = { status: "ok"; result: EventHuntResult } | { sta
  * {@link searchEventsWithinLimit} (the deadline as an `AbortSignal`, one of the tenant's search slots,
  * typed columns only each cut to `FIELD_MAX`), but counting. It reads up to `MAX_ROWS` rows to give a
  * count and keeps only `HUNT_EVENT_SAMPLE_SIZE` of them, so a run's row stays small however many
- * events matched. `newSince` is the previous run's start: events are new by their own time, not by
- * when they reached the archive, so an event the agent sent late (before that start) is not new.
+ * events matched. `newSince` is the previous run's start: an event is new when the flush wrote it to the
+ * archive after that start (`archivedAt`, the server's clock), not by the agent's own stamp. The stamp is
+ * the agent's value: counting on it lost an event that reached the archive after a run but was stamped
+ * before it (a drain every 5 minutes, a host reconnecting with a backlog), and counted one stamped later
+ * than now on every run until the clock passed it. `archivedAt` is also held to `now`, which only matters
+ * for a file written before the column existed (its rows read as `archivedAt` = `ts`, and a stamp can be
+ * a day ahead). Not covered: a flush that began before a run's start and put its file after that run read
+ * the archive is counted by neither run (the flush's duration, seconds).
  */
 export async function runEventHuntWithinLimit(
   prisma: PrismaClient,
@@ -190,7 +196,10 @@ export async function runEventHuntWithinLimit(
         signal,
       });
       signal.throwIfAborted();
-      const fresh = newSince === null ? found.rows.length : found.rows.filter((r) => r.ts.getTime() > newSince.getTime()).length;
+      const fresh =
+        newSince === null
+          ? found.rows.length
+          : found.rows.filter((r) => r.archivedAt.getTime() > newSince.getTime() && r.archivedAt.getTime() <= now.getTime()).length;
       return {
         status: "ok",
         result: {

@@ -169,3 +169,25 @@ export function describeRunError(error: unknown): string {
   }
   return "the run failed (see the server log)";
 }
+
+/**
+ * The columns of a run the history lists: every one except `sampleEvents`. A run's event sample is up
+ * to 50 rows of typed columns (about 100 KB), so a history of 100 runs would carry about 10 MB; the
+ * page shows one sample and reads it on its own. (Prisma 5 has no `omit` without a preview feature.)
+ */
+export const HUNT_RUN_HISTORY_SELECT = {
+  id: true,
+  huntId: true,
+  tenantId: true,
+  startedAt: true,
+  finishedAt: true,
+  queryVersion: true,
+  query: true,
+  matchCount: true,
+  newMatchCount: true,
+  sampleDetectionIds: true,
+  error: true,
+  trigger: true,
+  truncated: true,
+  incomplete: true,
+} satisfies Prisma.HuntRunSelect;
