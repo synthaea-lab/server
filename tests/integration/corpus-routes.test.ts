@@ -195,6 +195,52 @@ describe("POST /api/corpus/submit", () => {
     expect(new Set(versions.map((v) => v.tenantId))).toEqual(new Set([t1.id, t2.id]));
   });
 
+  it("lets concurrent first submits of one version all succeed on a single row (SV-019)", async () => {
+    // The find-or-create was a `findUnique` then a `create`: two submits that both saw no
+    // version both created it, and the loser failed with P2002 (a 500).
+    const tenant = await createTestTenant();
+    const ids = Array.from({ length: 8 }, (_, i) => `e-race-${i}`);
+    for (const id of ids) await createTestAgent(tenant.id, id);
+
+    const responses = await Promise.all(
+      ids.map((id, i) =>
+        submitReq(id, { corpusVersion: 7, samples: [sample(`2026-01-01T00:00:0${i}Z`)] })
+      )
+    );
+
+    expect(responses.map((r) => r.status)).toEqual(ids.map(() => 200));
+    expect(await prisma.corpusVersion.count()).toBe(1);
+    expect((await prisma.corpusVersion.findFirstOrThrow()).sampleCount).toBe(8);
+    expect(await prisma.corpusSample.count()).toBe(8);
+  });
+
+  it("refuses a submit that waits on a finalize and inserts nothing into the finalized version (SV-019)", async () => {
+    // The status was read, then checked, then the samples were inserted, as separate
+    // statements: a finalize that committed in between left samples in a finalized version.
+    // Here a transaction holds the version row, finalizes it, and commits after the submit
+    // has started; the submit must see the finalized status.
+    const tenant = await createTestTenant();
+    await createTestAgent(tenant.id, "e-toctou");
+    const version = await corpusVersion(tenant.id, 1);
+
+    let submitted: Promise<Response> | undefined;
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM corpus_versions WHERE id = ${version.id} FOR UPDATE`;
+      submitted = submitReq("e-toctou", { corpusVersion: 1, samples: [sample("2026-01-01T00:00:00Z")] });
+      // Let the submit run into the lock (or, on the unlocked code, past the status read).
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await tx.corpusVersion.update({
+        where: { id: version.id },
+        data: { status: "finalized", collectionEnd: new Date() },
+      });
+    });
+
+    const res = await submitted!;
+    expect(res.status).toBe(409);
+    expect(await prisma.corpusSample.count()).toBe(0);
+    expect((await prisma.corpusVersion.findUniqueOrThrow({ where: { id: version.id } })).sampleCount).toBe(0);
+  });
+
   it("refuses samples for a version that is no longer collecting with 409", async () => {
     const tenant = await createTestTenant();
     await createTestAgent(tenant.id, "e-late");

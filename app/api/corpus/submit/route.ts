@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { extractEnrollmentId } from "@/lib/tenant";
+import { submitSamples } from "@/lib/corpus";
 import { z } from "zod";
 
 const CorpusSampleSchema = z.object({
@@ -69,67 +70,24 @@ export async function POST(req: NextRequest) {
 
     const { corpusVersion, samples } = validation.data;
 
-    // Find or create corpus version
-    let version = await prisma.corpusVersion.findUnique({
-      where: {
-        tenantId_version: {
-          tenantId: agent.tenantId,
-          version: corpusVersion,
-        },
-      },
-    });
+    const result = await submitSamples(prisma, agent, { corpusVersion, samples });
 
-    if (!version) {
-      // Create new corpus version
-      version = await prisma.corpusVersion.create({
-        data: {
-          tenantId: agent.tenantId,
-          version: corpusVersion,
-          sampleCount: 0,
-          status: "collecting",
-          collectionStart: new Date(),
-        },
-      });
-    }
-
-    // Check if corpus version is still accepting samples
-    if (version.status !== "collecting") {
+    // Refuse a version that is no longer collecting
+    if (result.outcome === "notCollecting") {
       return NextResponse.json(
         {
           error: "Corpus version is finalized",
-          message: `Version ${corpusVersion} is no longer accepting samples (status: ${version.status})`,
+          message: `Version ${corpusVersion} is no longer accepting samples (status: ${result.status})`,
         },
         { status: 409 }
       );
     }
 
-    // Insert samples in batch
-    const sampleRecords = samples.map((sample) => ({
-      tenantId: agent.tenantId,
-      corpusVersionId: version.id,
-      agentId: agent.id,
-      timestamp: new Date(sample.timestamp),
-      eventType: sample.eventType,
-      event: sample.event,
-    }));
-
-    await prisma.corpusSample.createMany({
-      data: sampleRecords,
-    });
-
-    // Update sample count
-    await prisma.corpusVersion.update({
-      where: { id: version.id },
-      data: {
-        sampleCount: { increment: samples.length },
-      },
-    });
-
     return NextResponse.json({
       status: "accepted",
       samplesAccepted: samples.length,
       corpusVersion,
-      totalSamples: version.sampleCount + samples.length,
+      totalSamples: result.totalSamples,
     });
   } catch (error) {
     console.error("Corpus submission error:", error);
