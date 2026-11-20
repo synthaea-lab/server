@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { analystMarkedFalsePositive } from "@/lib/detection-verdict";
 import { verifyCronRequest } from "@/lib/cron-auth";
 import { prisma } from "@/lib/prisma";
 import { CANARY_RINGS } from "@/lib/rings";
@@ -79,7 +80,7 @@ export async function GET(req: NextRequest) {
               data: {
                 tenantId: tenant.id,
                 title: `Auto-halt: ${ring} deployment regression`,
-                description: `Content release v${release.releaseVersion} for ring ${ring} was automatically halted due to health regression.\n\nMetrics:\n- Silent rate: ${(canaryMetrics.silentRate * 100).toFixed(2)}% (threshold: ${(MAX_SILENT_RATE * 100).toFixed(0)}%)\n- FP rate: ${canaryMetrics.fpCount} (baseline: ${prodMetrics.fpCount}, max increase: ${MAX_FP_RATE_INCREASE}×)\n- Detection rate: ${canaryMetrics.detectionCount} (baseline: ${prodMetrics.detectionCount}, max drop: ${(MAX_DETECTION_RATE_DROP * 100).toFixed(0)}%)\n\nReason: ${regression}`,
+                description: `Content release v${release.releaseVersion} for ring ${ring} was automatically halted due to health regression.\n\nMetrics:\n- Silent rate: ${(canaryMetrics.silentRate * 100).toFixed(2)}% (threshold: ${(MAX_SILENT_RATE * 100).toFixed(0)}%)\n- Analyst-marked false positives: ${canaryMetrics.falsePositiveCount} (baseline: ${prodMetrics.falsePositiveCount}, max increase: ${MAX_FP_RATE_INCREASE}×; detections not yet triaged are not counted)\n- Detection rate: ${canaryMetrics.detectionCount} (baseline: ${prodMetrics.detectionCount}, max drop: ${(MAX_DETECTION_RATE_DROP * 100).toFixed(0)}%)\n\nReason: ${regression}`,
                 severity: "high",
                 status: "open",
               },
@@ -146,7 +147,7 @@ async function calculateRingMetrics(tenantId: string, ring: string) {
       silentAgents: 0,
       silentRate: 0,
       detectionCount: 0,
-      fpCount: 0,
+      falsePositiveCount: 0,
     };
   }
 
@@ -180,14 +181,12 @@ async function calculateRingMetrics(tenantId: string, ring: string) {
     },
   });
 
-  // Count false positives (low-severity detections as proxy)
-  // TODO: Add explicit FP flag to Detection model
-  const fpCount = await prisma.detection.count({
+  const falsePositiveCount = await prisma.detection.count({
     where: {
       tenantId,
       agentId: { in: agentIds },
       timestamp: { gte: recentThreshold },
-      severity: "low",
+      ...analystMarkedFalsePositive,
     },
   });
 
@@ -197,7 +196,7 @@ async function calculateRingMetrics(tenantId: string, ring: string) {
     silentAgents,
     silentRate,
     detectionCount,
-    fpCount,
+    falsePositiveCount,
   };
 }
 
@@ -225,14 +224,14 @@ function detectRegression(
   }
 
   // Check 2: FP rate increase (only if baseline has FPs)
-  if (baseline.fpCount > 0) {
-    const fpRateIncrease = canary.fpCount / baseline.fpCount;
+  if (baseline.falsePositiveCount > 0) {
+    const fpRateIncrease = canary.falsePositiveCount / baseline.falsePositiveCount;
     if (fpRateIncrease > MAX_FP_RATE_INCREASE) {
-      return `FP rate increased ${fpRateIncrease.toFixed(2)}× (${canary.fpCount} vs baseline ${baseline.fpCount})`;
+      return `FP rate increased ${fpRateIncrease.toFixed(2)}× (${canary.falsePositiveCount} vs baseline ${baseline.falsePositiveCount})`;
     }
-  } else if (canary.fpCount > 10) {
+  } else if (canary.falsePositiveCount > 10) {
     // If baseline has no FPs but canary has >10, flag it
-    return `FP rate spike: ${canary.fpCount} FPs (baseline: 0)`;
+    return `FP rate spike: ${canary.falsePositiveCount} FPs (baseline: 0)`;
   }
 
   // Check 3: Detection rate drop (only if baseline has detections)

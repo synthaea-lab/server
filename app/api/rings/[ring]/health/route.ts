@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { analystMarkedFalsePositive } from "@/lib/detection-verdict";
 import { prisma } from "@/lib/prisma";
 import { requireTenantMember } from "@/lib/admin-auth";
 import { RINGS, isRing } from "@/lib/rings";
@@ -90,7 +91,6 @@ export async function GET(
       },
     });
 
-    // Count false positives (detections with severity "low" as proxy - needs better tracking)
     const falsePositives = await prisma.detection.count({
       where: {
         tenantId,
@@ -98,7 +98,7 @@ export async function GET(
         timestamp: {
           gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
         },
-        severity: "low", // Placeholder - real FP tracking needs dedicated field
+        ...analystMarkedFalsePositive,
       },
     });
 
