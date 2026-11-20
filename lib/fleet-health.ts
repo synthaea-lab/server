@@ -45,6 +45,33 @@ export function iocFeedSummary(ioc: { iocIndicators: number; iocFindings: number
   return ioc.iocCooledDown > 0 ? `${base}, ${ioc.iocCooledDown} repeats held back` : base;
 }
 
+/** The Windows ETW sensor's cache counters, as the beacon names them (agent#314). */
+export type EtwShedding = {
+  /** Pid-cache entries evicted at the cap: a later event of that process misses its image. */
+  pidCacheEvicted: number;
+  /** Silo-directory entries evicted at the cap: the container is looked up again. */
+  siloEvicted: number;
+  /** `Zone.Identifier` marks dropped from the read-back queue: each is a lost `FileQuarantine`. */
+  marksDropped: number;
+  /** Quarantine paths reported without dedup (map full): a possible duplicate, never a loss. */
+  quarantineUnremembered: number;
+};
+
+/**
+ * The ETW caches' shedding in one cell: "none" when nothing was shed (every non-Windows host), else
+ * only the counters that moved. Lost quarantine marks come first: they are the one real loss.
+ */
+export function etwSheddingSummary(shed: EtwShedding): string {
+  const parts = [
+    [shed.marksDropped, "quarantine marks lost"],
+    [shed.pidCacheEvicted, "pid-cache evictions"],
+    [shed.siloEvicted, "silo evictions"],
+    [shed.quarantineUnremembered, "quarantines not deduplicated"],
+  ] as const;
+  const moved = parts.filter(([count]) => count > 0).map(([count, what]) => `${count} ${what}`);
+  return moved.length === 0 ? "none" : moved.join(", ");
+}
+
 /** What `agent_health` holds about an agent's last beacon, as far as loss detection reads it. */
 export type StoredLoss = {
   beaconAt: Date;

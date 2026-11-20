@@ -3,7 +3,7 @@ import { requireConsoleTenant } from "@/lib/console-session";
 import { NoOrganization } from "@/components/NoOrganization";
 import { loadFleet, type FleetAgent } from "@/lib/fleet";
 import { loadRings, type RingStatus, type RolloutState } from "@/lib/rings";
-import { iocFeedSummary, type FleetStatus } from "@/lib/fleet-health";
+import { etwSheddingSummary, iocFeedSummary, type FleetStatus } from "@/lib/fleet-health";
 import { loadIngestHealth, type AgentIngestHealth } from "@/lib/ingest-stats";
 import { loadLakeBacklog, type LakeBacklog } from "@/lib/lake-backlog";
 import { DEFAULT_BACKLOG_MAX_AGE_MS } from "@/lib/lake-backlog-case";
@@ -71,6 +71,8 @@ export default async function FleetHealthPage() {
                 <th className="px-4 py-2 text-right">Tamper events</th>
                 <th className="px-4 py-2">Parent images evicted</th>
                 <th className="px-4 py-2">IOC feed</th>
+                <th className="px-4 py-2 text-right">Alerts not written</th>
+                <th className="px-4 py-2">ETW caches shed</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -127,6 +129,8 @@ function AgentRow({ agent }: { agent: FleetAgent }) {
           : "—"}
       </td>
       <td className="px-4 py-2 text-gray-700">{agent.health ? iocFeedSummary(agent.health) : "—"}</td>
+      <td className="px-4 py-2 text-right tabular-nums">{agent.health?.alertsDropped ?? "—"}</td>
+      <td className="px-4 py-2 text-gray-700">{agent.health ? etwSheddingSummary(agent.health.etwShedding) : "—"}</td>
     </tr>
   );
 }

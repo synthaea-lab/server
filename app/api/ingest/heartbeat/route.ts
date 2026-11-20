@@ -78,6 +78,11 @@ async function storeBeacon(
       iocCooledDown: BigInt(beacon.ioc_cooled_down),
       iocOwnSkipped: BigInt(beacon.ioc_own_skipped),
       iocSiblingSkipped: BigInt(beacon.ioc_sibling_skipped),
+      alertsDropped: BigInt(beacon.alerts_dropped),
+      etwPidCacheEvicted: BigInt(beacon.etw_pid_cache_evicted),
+      etwSiloEvicted: BigInt(beacon.etw_silo_evicted),
+      etwMarksDropped: BigInt(beacon.etw_marks_dropped),
+      etwQuarantineUnremembered: BigInt(beacon.etw_quarantine_unremembered),
       sensors: beacon.sensors,
     };
     await prisma.agentHealth.upsert({

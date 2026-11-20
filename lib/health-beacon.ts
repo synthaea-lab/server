@@ -46,6 +46,13 @@ export const HealthBeacon = z.object({
   // by a second process on its executable. Absent from an older agent: zero.
   ioc_own_skipped: counter.default(0),
   ioc_sibling_skipped: counter.default(0),
+  // #91: alerts the agent could not write to `alerts.ndjson` (agent#167), and what the Windows ETW
+  // sensor's caches shed (agent#314; zero on other platforms). Absent from an older agent: zero.
+  alerts_dropped: counter.default(0),
+  etw_pid_cache_evicted: counter.default(0),
+  etw_silo_evicted: counter.default(0),
+  etw_marks_dropped: counter.default(0),
+  etw_quarantine_unremembered: counter.default(0),
 });
 export type HealthBeacon = z.infer<typeof HealthBeacon>;
 
