@@ -182,20 +182,25 @@ describe("enqueueLakeBatch", () => {
   });
 });
 
-type Batch = { id: string; tenantId: string; agentId: string; receivedAt: Date; events: unknown; flushId?: string | null };
+type Batch = { id: string; tenantId: string; agentId: string; receivedAt: Date; events: unknown; flushId?: string | null; archivedAt?: Date | null };
 
 /** The slice of Prisma `drainLakeQueue` uses, backed by arrays. */
 function fakePrisma(batches: Batch[], tenants: { id: string; lakeRetentionDays: number }[]) {
-  const state = { batches: batches.map((b) => ({ ...b, flushId: b.flushId ?? null })), lockedFlushes: new Set<string>() };
+  const state: { batches: Batch[]; lockedFlushes: Set<string> } = { batches: batches.map((b) => ({ ...b, flushId: b.flushId ?? null, archivedAt: b.archivedAt ?? null })), lockedFlushes: new Set<string>() };
   const lakeBatch = {
     findMany: vi.fn(async ({ where }: { where: { flushId?: string | { not: null } } }) => {
       const wanted = where.flushId;
-      const rows = state.batches.filter((b) => (typeof wanted === "string" ? b.flushId === wanted : b.flushId !== null));
+      const rows = state.batches.filter((b) => (typeof wanted === "string" ? b.flushId === wanted : b.flushId != null));
       // `distinct: ["flushId"]` is only asked for with `select: { flushId }`.
       return typeof wanted === "string" ? rows : rows.filter((b, i) => rows.findIndex((o) => o.flushId === b.flushId) === i);
     }),
-    updateMany: vi.fn(async ({ where, data }: { where: { id: { in: string[] } }; data: { flushId: string } }) => {
-      for (const b of state.batches) if (where.id.in.includes(b.id)) b.flushId = data.flushId;
+    // The assign step sets `flushId` by ids; the stamp step sets or clears `archivedAt` by flush.
+    updateMany: vi.fn(async ({ where, data }: { where: { id?: { in: string[] }; flushId?: string }; data: { flushId?: string; archivedAt?: Date | null } }) => {
+      for (const b of state.batches) {
+        if (!(where.id ? where.id.in.includes(b.id) : b.flushId === where.flushId)) continue;
+        if (data.flushId !== undefined) b.flushId = data.flushId;
+        if (data.archivedAt !== undefined) b.archivedAt = data.archivedAt;
+      }
     }),
     deleteMany: vi.fn(async ({ where }: { where: { id: { in: string[] } } }) => {
       state.batches = state.batches.filter((b) => !where.id.in.includes(b.id));
@@ -210,7 +215,7 @@ function fakePrisma(batches: Batch[], tenants: { id: string; lakeRetentionDays: 
         const ok = !state.lockedFlushes.has(flush);
         return [{ ok }];
       }
-      return state.batches.filter((b) => b.flushId === null).map((b) => ({ id: b.id }));
+      return state.batches.filter((b) => b.flushId == null).map((b) => ({ id: b.id }));
     }),
     lakeBatch,
     tenant: { findMany: vi.fn(async ({ where }: { where: { id: { in: string[] } } }) => tenants.filter((t) => where.id.in.includes(t.id))) },

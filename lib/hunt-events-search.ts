@@ -163,7 +163,11 @@ export type EventHuntOutcome = { status: "ok"; result: EventHuntResult } | { sta
  * than now on every run until the clock passed it. `archivedAt` is also held to `now`, which only matters
  * for a file written before the column existed (its rows read as `archivedAt` = `ts`, and a stamp can be
  * a day ahead). Not covered: a flush that began before a run's start and put its file after that run read
- * the archive is counted by neither run (the flush's duration, seconds).
+ * the archive is counted by neither run. The stamp is taken per flush, under its lock just before its first
+ * put, and kept across retries, so that window is one flush's write (seconds) and a retried flush is not
+ * counted twice. A crash after a first put but before the transaction ended keeps the stamp too (a flush
+ * that wrote nothing before failing is stamped again). `newMatchCount` is a floor when `truncated`: the
+ * rows cut are the oldest stamps, which are the late-backlog events this count exists for.
  */
 export async function runEventHuntWithinLimit(
   prisma: PrismaClient,

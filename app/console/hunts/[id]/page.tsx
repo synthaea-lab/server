@@ -46,8 +46,9 @@ export default async function HuntPage({ params }: { params: { id: string } }) {
   })();
   // An event hunt's latest run keeps the events it sampled; show them here, so the page says what the run saw.
   // Only the latest run: when it failed there is nothing to show, not an older run's events under a newer label.
-  const latest = runs[0];
-  const sampled = isEventHunt && latest && latest.finishedAt && !latest.error ? latest : undefined;
+  // A run still in progress is skipped, so a failed latest run shows nothing instead of an older run's events.
+  const latest = runs.find((run) => run.finishedAt);
+  const sampled = isEventHunt && latest && !latest.error ? latest : undefined;
   const sampledRow = sampled ? await prisma.huntRun.findFirst({ where: { id: sampled.id, tenantId }, select: { sampleEvents: true } }) : null;
   const sampleEvents = sampledRow && Array.isArray(sampledRow.sampleEvents) ? (sampledRow.sampleEvents as unknown as EventRow[]) : [];
 
@@ -139,7 +140,7 @@ export default async function HuntPage({ params }: { params: { id: string } }) {
                     <td className="px-4 py-2 text-right text-gray-900" title={run.incomplete ? "The oldest days were not read" : undefined}>
                       {state === "ok" ? `${run.matchCount}${run.truncated ? "+" : ""}${run.incomplete ? " *" : ""}` : "–"}
                     </td>
-                    <td className="px-4 py-2 text-right text-gray-900">{state === "ok" ? run.newMatchCount : "–"}</td>
+                    <td className="px-4 py-2 text-right text-gray-900">{state === "ok" ? `${run.newMatchCount}${run.truncated ? "+" : ""}` : "–"}</td>
                   </tr>
                 );
               })}
@@ -154,7 +155,7 @@ export default async function HuntPage({ params }: { params: { id: string } }) {
             Run started {formatTime(sampled!.startedAt)}, query v{sampled!.queryVersion}.
             The newest {sampleEvents.length} of {sampled?.matchCount}{sampled?.truncated ? "+" : ""} events, typed columns only.
             A count with + is a floor (a run counts up to 1000); * means the archive had more files than one run reads, so the oldest days were not read.
-            New counts events written to the archive after the previous run started.
+            New counts events written to the archive after the previous run started; with + it is a floor too, since the rows a truncated run cuts are the oldest stamps.
           </p>
           <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white"><EventTable rows={sampleEvents} /></div>
         </div>

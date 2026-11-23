@@ -749,6 +749,11 @@ model LakeBatch {
   // that has one belongs to that flush for good, so a retry after a crash writes the same files
   // under the same names and cannot write an event twice. Null: not yet assigned.
   flushId    String?  @map("flush_id")
+  // The archive time of the flush, taken once under the flush's lock just before its first file is put
+  // and kept across retries, so a retry rewrites the files with the stamp the first attempt gave them
+  // and a run does not count the same events as new twice. Cleared when the first put fails, so a
+  // flush that wrote nothing is stamped again at its retry. Null: no attempt has stamped it yet.
+  archivedAt DateTime? @map("archived_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 

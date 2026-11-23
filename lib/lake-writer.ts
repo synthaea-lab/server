@@ -262,7 +262,7 @@ function emptyDrain(): DrainResult {
  */
 export async function drainLakeQueue(
   prisma: PrismaClient,
-  store: Pick<LakeStore, "put">,
+  store: LakeWriterStore,
   opts: { maxBatches?: number; now?: Date } = {}
 ): Promise<DrainResult> {
   const max = opts.maxBatches ?? DEFAULT_MAX_BATCHES;
@@ -280,7 +280,7 @@ export async function drainLakeQueue(
   const assigned = await prisma.lakeBatch.findMany({ where: { flushId: { not: null } }, select: { flushId: true }, distinct: ["flushId"] });
   for (const { flushId } of assigned) {
     if (flushId === null) continue;
-    const part = await writeFlush(prisma, store, flushId, now);
+    const part = await writeFlush(prisma, store, flushId, now, () => opts.now ?? new Date());
     if (part === null) continue;
     total.batches += part.batches;
     total.events += part.events;
@@ -293,12 +293,25 @@ export async function drainLakeQueue(
   return total;
 }
 
+/** What the writer needs from a store: `put`, and `list` when it can tell whether a flush left a file behind. */
+export type LakeWriterStore = Pick<LakeStore, "put"> & Partial<Pick<LakeStore, "list">>;
+
+async function anyKeyExists(list: LakeStore["list"], keys: string[]): Promise<boolean> {
+  try {
+    for (const key of keys) if ((await list(key.slice(0, key.lastIndexOf("/")))).some((f) => f.key === key)) return true;
+    return false;
+  } catch {
+    return true;
+  }
+}
+
 /** Writes one assigned flush, or returns null when another drain holds it or it is already gone. */
 async function writeFlush(
   prisma: PrismaClient,
-  store: Pick<LakeStore, "put">,
+  store: LakeWriterStore,
   flushId: string,
-  now: Date
+  now: Date,
+  clock: () => Date
 ): Promise<Omit<DrainResult, "remaining"> | null> {
   return prisma.$transaction(
     async (tx) => {
@@ -309,6 +322,10 @@ async function writeFlush(
 
       const batches = await tx.lakeBatch.findMany({ where: { flushId }, orderBy: [{ receivedAt: "asc" }, { id: "asc" }] });
       if (batches.length === 0) return null;
+      // The flush's archive time: the one a first attempt gave it (a retry keeps it), else the clock now,
+      // under the lock and after the queue read, so it is as late as it can be before the first put.
+      const stamped = batches.find((b) => b.archivedAt !== null)?.archivedAt ?? null;
+      const archivedAt = stamped ?? clock();
       const ids = batches.map((b) => b.id);
       const tenants = await tx.tenant.findMany({
         where: { id: { in: Array.from(new Set(batches.map((b) => b.tenantId))) } },
@@ -347,7 +364,7 @@ async function writeFlush(
             continue;
           }
           const event = raw as Record<string, unknown>;
-          const row = lakeRow(batch.agentId, event, batch.receivedAt, source, now);
+          const row = lakeRow(batch.agentId, event, batch.receivedAt, source, archivedAt);
           const type = typeSegment(event.type);
           const day = dayOf(row.at);
           if (isPastRetention(day, retentionOf.get(batch.tenantId) ?? 0, now)) {
@@ -365,8 +382,20 @@ async function writeFlush(
         }
       }
 
-      for (const g of Array.from(groups.values())) {
-        await store.put(lakeKey(g.tenantId, g.day, g.type, flushId.replace(/-/g, "")), encodeParquet(g.rows));
+      // Committed outside the transaction, so the stamp survives a transaction lost after a put.
+      if (stamped === null && groups.size > 0) await prisma.lakeBatch.updateMany({ where: { flushId }, data: { archivedAt } });
+      const keys = Array.from(groups.values()).map((g) => lakeKey(g.tenantId, g.day, g.type, flushId.replace(/-/g, "")));
+      try {
+        const list = Array.from(groups.values());
+        for (let i = 0; i < list.length; i++) await store.put(keys[i], encodeParquet(list[i].rows));
+      } catch (error) {
+        // A put that threw may still have written its file, so the stamp stays unless the store says no
+        // key of the flush exists: then the retry is a first write and takes a fresh stamp. A store that
+        // cannot list keeps the stamp, which can only cost a miss, never a double count.
+        if (stamped === null && store.list && !(await anyKeyExists(store.list, keys))) {
+          await prisma.lakeBatch.updateMany({ where: { flushId }, data: { archivedAt: null } }).catch(() => undefined);
+        }
+        throw error;
       }
 
       await tx.lakeBatch.deleteMany({ where: { id: { in: ids } } });

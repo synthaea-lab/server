@@ -152,6 +152,38 @@ describe("saved hunts over the event archive: runs", () => {
     expect(counts).toEqual([1, 0, 0]);
   });
 
+  it("counts a flush retried after its files were put as new once (the stamp is kept across retries)", async () => {
+    // writeFlush puts its files inside a transaction: a put that writes and then throws leaves the file in
+    // the store and the batch queued. The retry used to stamp the rewritten file with its own, later, clock,
+    // so a run in between read the first file and the next run counted the same event again.
+    const tenant = await createTestTenant();
+    const agent = await createTestAgent(tenant.id);
+    const row = await prisma.hunt.findUniqueOrThrow({ where: { id: (await create(tenant.id)).id } });
+    await runHunt(prisma, row, "schedule", minutes(-5), { archive: ready() });
+    await enqueueStamped(tenant.id, agent.id, minutes(-1), minutes(-0.5));
+    const writesThenFails = { put: async (key: string, body: Uint8Array) => { await store.put(key, body); throw new Error("lost after put"); }, list: (prefix: string) => store.list(prefix) };
+    await expect(drainLakeQueue(prisma, writesThenFails, { now: minutes(1) })).rejects.toThrow("lost after put");
+
+    const counts: number[] = [];
+    counts.push((await runHunt(prisma, row, "schedule", minutes(2), { archive: ready() })).newMatchCount);
+    await drainLakeQueue(prisma, store, { now: minutes(3) });
+    for (const at of [5, 10]) counts.push((await runHunt(prisma, row, "schedule", minutes(at), { archive: ready() })).newMatchCount);
+    expect(counts.reduce((a, b) => a + b, 0)).toBe(1);
+  });
+
+  it("stamps a flush again at its retry when the failed attempt left no file", async () => {
+    const tenant = await createTestTenant();
+    const agent = await createTestAgent(tenant.id);
+    const row = await prisma.hunt.findUniqueOrThrow({ where: { id: (await create(tenant.id)).id } });
+    await runHunt(prisma, row, "schedule", minutes(-5), { archive: ready() });
+    await enqueueStamped(tenant.id, agent.id, minutes(-1), minutes(-0.5));
+    const full = { put: async () => { throw new Error("disk full"); }, list: (prefix: string) => store.list(prefix) };
+    await expect(drainLakeQueue(prisma, full, { now: minutes(1) })).rejects.toThrow("disk full");
+    expect(await runHunt(prisma, row, "schedule", minutes(2), { archive: ready() })).toMatchObject({ matchCount: 0, newMatchCount: 0 });
+    await drainLakeQueue(prisma, store, { now: minutes(3) });
+    expect(await runHunt(prisma, row, "schedule", minutes(5), { archive: ready() })).toMatchObject({ matchCount: 1, newMatchCount: 1 });
+  });
+
   it("reads a file written before the archive kept a write time, counting its events by their own stamp", async () => {
     const tenant = await createTestTenant();
     const agent = await createTestAgent(tenant.id);
