@@ -97,6 +97,13 @@ describe("parseHeartbeatBody", () => {
     }
     expect(parseHeartbeatBody({ beacon: beacon({ agent_version: "v".repeat(129) }) })).toBeNull();
   });
+
+  it("rejects a counter that would overflow a Postgres BIGINT, and keeps a nanosecond timestamp", () => {
+    expect(parseHeartbeatBody({ beacon: beacon({ spool_dropped: 2 ** 63 }) })).toBeNull();
+    expect(parseHeartbeatBody({ beacon: beacon({ watchdog_restarts: 2 ** 64 }) })).toBeNull();
+    const now = parseHeartbeatBody({ beacon: beacon({ timestamp_ns: 1_790_000_000_000_000_000 }) });
+    expect(now?.timestamp_ns).toBe(1_790_000_000_000_000_000);
+  });
 });
 
 describe("fleetStatus", () => {

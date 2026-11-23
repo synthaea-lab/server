@@ -4,7 +4,14 @@ import { z } from "zod";
 const MAX_SENSORS = 64;
 const MAX_NAME = 128;
 
-const counter = z.number().int().nonnegative().finite();
+/**
+ * Counters are stored as Postgres `BIGINT`. A larger value would make the upsert throw after the
+ * beacon was accepted, and the route's catch would drop the whole beacon; rejecting it here gives
+ * the agent a 400 instead. `2 ** 63` is exact as a float, so `lt` is the exact bound.
+ */
+const BIGINT_LIMIT = 2 ** 63;
+
+const counter = z.number().int().nonnegative().finite().lt(BIGINT_LIMIT);
 
 /**
  * One serialized `schema::HealthBeacon` (what `transport` posts as
