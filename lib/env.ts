@@ -4,12 +4,15 @@
  * throws: a typo must not silently mean "keep the default".
  */
 
+/** What the readers below take: `process.env`, or a test's own object. */
+export type Environment = Record<string, string | undefined>;
+
 /**
  * A positive number from the environment, or `fallback` when unset or empty. With `integer`, a
  * fraction is refused too.
  */
 export function positiveNumberFromEnv(
-  env: Record<string, string | undefined>,
+  env: Environment,
   name: string,
   fallback: number,
   { integer = false }: { integer?: boolean } = {}
@@ -24,7 +27,7 @@ export function positiveNumberFromEnv(
 }
 
 /** A positive integer from the environment, or `fallback` when unset or empty. */
-export function positiveIntFromEnv(env: Record<string, string | undefined>, name: string, fallback: number): number {
+export function positiveIntFromEnv(env: Environment, name: string, fallback: number): number {
   return positiveNumberFromEnv(env, name, fallback, { integer: true });
 }
 
@@ -34,30 +37,35 @@ const DEFAULT_TRUSTED_ORIGINS = ["http://localhost:3000", "http://localhost:8443
 /**
  * The origins better-auth accepts on a request that carries a session cookie (`lib/auth.ts`).
  * `AUTH_TRUSTED_ORIGINS` is a comma-separated list of `http(s)://host[:port]` origins. Unset, empty or
- * blank it is the two localhost origins, as before; set, it is exactly the listed origins, so a
- * production console is not also trusted from localhost. An entry that is not an origin (no scheme, a
- * path, a query, credentials) throws.
+ * blank it is the two localhost origins, as before; set, it is the listed origins instead of those two.
+ * An entry that is not an origin (no scheme, a path, a query, credentials) throws, and so does a value
+ * with no entry at all (`","`). better-auth adds its own origins on top (see docs/security-model.md).
  */
-export function authTrustedOrigins(env: Record<string, string | undefined>): string[] {
+export function authTrustedOrigins(env: Environment): string[] {
   const raw = env.AUTH_TRUSTED_ORIGINS;
   if (raw === undefined || raw.trim() === "") return [...DEFAULT_TRUSTED_ORIGINS];
-  const origins = new Set<string>();
-  for (const entry of raw.split(",").map((e) => e.trim()).filter((e) => e !== "")) {
-    origins.add(parseOrigin(entry));
-  }
-  return Array.from(origins);
+  const entries = raw.split(",").map((e) => e.trim()).filter((e) => e !== "");
+  if (entries.length === 0) throw new Error(`AUTH_TRUSTED_ORIGINS lists no origin, got "${raw}"`);
+  return Array.from(new Set(entries.map(parseOrigin)));
+}
+
+/** True for `http(s)://host[:port]` and nothing more: no credentials, path, query or fragment. */
+function isBareHttpOrigin(url: URL): boolean {
+  const httpScheme = url.protocol === "http:" || url.protocol === "https:";
+  const noCredentials = url.username === "" && url.password === "";
+  const noPath = url.pathname === "/" || url.pathname === "";
+  return httpScheme && noCredentials && noPath && url.search === "" && url.hash === "";
 }
 
 function parseOrigin(entry: string): string {
-  const invalid = () => new Error(`AUTH_TRUSTED_ORIGINS must list http(s)://host[:port] origins, got "${entry}"`);
+  const invalidOriginError = (cause?: unknown) =>
+    new Error(`AUTH_TRUSTED_ORIGINS must list http(s)://host[:port] origins, got "${entry}"`, { cause });
   let url: URL;
   try {
     url = new URL(entry);
-  } catch {
-    throw invalid();
+  } catch (error) {
+    throw invalidOriginError(error);
   }
-  if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username !== "" || url.password !== "" || (url.pathname !== "/" && url.pathname !== "") || url.search !== "" || url.hash !== "") {
-    throw invalid();
-  }
+  if (!isBareHttpOrigin(url)) throw invalidOriginError();
   return url.origin;
 }

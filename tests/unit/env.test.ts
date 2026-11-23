@@ -10,7 +10,6 @@ describe("positiveNumberFromEnv", () => {
   it("returns a positive number, a fraction included unless an integer is asked for", () => {
     expect(positiveNumberFromEnv({ X: "3" }, "X", 7)).toBe(3);
     expect(positiveNumberFromEnv({ X: "0.25" }, "X", 7)).toBe(0.25);
-    expect(positiveNumberFromEnv({ X: "0.25" }, "X", 7, { integer: false })).toBe(0.25);
   });
 
   it("throws on a set value that is not a positive number, naming the variable and the value", () => {
@@ -61,6 +60,12 @@ describe("authTrustedOrigins", () => {
   it("throws on an entry that is not an http(s) origin, so a typo never means the default", () => {
     for (const bad of ["console.example.com", "ftp://a.example.com", "https://a.example.com/console", "https://a.example.com?x=1", "https://user@a.example.com", "*"]) {
       expect(() => authTrustedOrigins({ AUTH_TRUSTED_ORIGINS: `https://ok.example.com,${bad}` })).toThrow(/AUTH_TRUSTED_ORIGINS/);
+    }
+  });
+
+  it("throws on a non-blank value with no entry, which would otherwise trust no origin silently", () => {
+    for (const bad of [",", " , ", ",,"]) {
+      expect(() => authTrustedOrigins({ AUTH_TRUSTED_ORIGINS: bad })).toThrow(/lists no origin/);
     }
   });
 });

@@ -8,6 +8,10 @@
 export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     const { startDecoyWatch } = await import("./instrumentation-node");
+    const { authTrustedOrigins } = await import("./lib/env");
     startDecoyWatch();
+    // Fail at start, not on the first /api/auth request: Next loads route modules lazily, so a bad
+    // AUTH_TRUSTED_ORIGINS would otherwise only surface as a 500 from the auth routes.
+    authTrustedOrigins(process.env);
   }
 }
