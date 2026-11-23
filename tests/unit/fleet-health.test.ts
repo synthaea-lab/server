@@ -183,12 +183,14 @@ describe("nextLossObservedAt (#83)", () => {
     timestamp_ns: T0 + 30_000_000_000,
     spool_dropped: 0,
     enrich_dropped: 0,
+    etw_marks_dropped: 0,
     ...over,
   });
   const stored = (over: Record<string, unknown> = {}) => ({
     beaconAt: new Date(T0 / 1_000_000),
     spoolDropped: BigInt(0),
     enrichDropped: BigInt(0),
+    etwMarksDropped: BigInt(0),
     lossObservedAt: null as Date | null,
     ...over,
   });
@@ -202,7 +204,7 @@ describe("nextLossObservedAt (#83)", () => {
     });
   });
 
-  it("stamps the receive time when either loss counter rose", () => {
+  it("stamps the receive time when the spool or enrichment loss counter rose", () => {
     expect(nextLossObservedAt(stored(), beacon({ spool_dropped: 1 }), received).lossObservedAt).toEqual(received);
     expect(nextLossObservedAt(stored(), beacon({ enrich_dropped: 3 }), received).lossObservedAt).toEqual(received);
     // One counter falling does not cancel the other rising.
@@ -210,6 +212,16 @@ describe("nextLossObservedAt (#83)", () => {
       nextLossObservedAt(stored({ spoolDropped: BigInt(9) }), beacon({ spool_dropped: 0, enrich_dropped: 2 }), received)
         .lossObservedAt
     ).toEqual(received);
+  });
+
+  it("stamps the receive time when lost quarantine marks rose, and not when they fell on a restart", () => {
+    expect(nextLossObservedAt(stored(), beacon({ etw_marks_dropped: 1 }), received).lossObservedAt).toEqual(received);
+    const restarted = nextLossObservedAt(
+      stored({ etwMarksDropped: BigInt(12), lossObservedAt: earlier }),
+      beacon({ etw_marks_dropped: 0 }),
+      received
+    );
+    expect(restarted.lossObservedAt).toEqual(earlier);
   });
 
   it("keeps what it had when nothing rose, including after an agent restart reset the counters", () => {

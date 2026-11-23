@@ -53,7 +53,13 @@ async function storeBeacon(
     const receivedAt = new Date();
     const previous = await prisma.agentHealth.findUnique({
       where: { agentId: agent.id },
-      select: { beaconAt: true, spoolDropped: true, enrichDropped: true, lossObservedAt: true },
+      select: {
+        beaconAt: true,
+        spoolDropped: true,
+        enrichDropped: true,
+        etwMarksDropped: true,
+        lossObservedAt: true,
+      },
     });
     const loss = nextLossObservedAt(previous, beacon, receivedAt);
     if (loss.stale) return;

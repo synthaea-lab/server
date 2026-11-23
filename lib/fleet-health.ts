@@ -77,12 +77,26 @@ export type StoredLoss = {
   beaconAt: Date;
   spoolDropped: bigint;
   enrichDropped: bigint;
+  etwMarksDropped: bigint;
   lossObservedAt: Date | null;
 };
 
+/** A beacon's loss counters, by the name the agent sends them under. */
+type BeaconLoss = { spool_dropped: number; enrich_dropped: number; etw_marks_dropped: number };
+
 /**
- * The loss stamp after a beacon arrives (#83). The agent's loss counters (`spool_dropped`,
- * `enrich_dropped`) are cumulative since it started and the server keeps only the latest beacon,
+ * Each counter that counts telemetry which never reaches the server, paired with the column it is
+ * stored in. A lost quarantine mark is a `FileQuarantine` event that is never sent (agent#314).
+ */
+const LOSS_COUNTERS = [
+  ["spool_dropped", "spoolDropped"],
+  ["enrich_dropped", "enrichDropped"],
+  ["etw_marks_dropped", "etwMarksDropped"],
+] as const satisfies ReadonlyArray<readonly [keyof BeaconLoss, keyof StoredLoss]>;
+
+/**
+ * The loss stamp after a beacon arrives (#83). The agent's loss counters ([`LOSS_COUNTERS`]) are
+ * cumulative since it started and the server keeps only the latest beacon,
  * so a recent loss is told by a counter *rising* between two beacons, stamped with the server's
  * receive time (not the agent's clock, which can be skewed).
  *
@@ -91,21 +105,20 @@ export type StoredLoss = {
  * - A counter that fell is an agent restart, not loss, and neither sets nor clears the stamp.
  * - A beacon older than the stored one is `stale`: the caller must not store it, or its lower
  *   counters would make the next real beacon look like a rise.
- * - Only the two loss counters count; the rarity evidence counters are information about a
- *   feature, not lost telemetry.
+ * - Only the loss counters count. The rarity evidence counters are information about a feature,
+ *   `alerts_dropped` counts alerts that still reached stderr and `cli detections`, and the other
+ *   ETW counters degrade enrichment: none of them is telemetry the server never receives.
  */
 export function nextLossObservedAt(
   previous: StoredLoss | null,
-  beacon: { timestamp_ns: number; spool_dropped: number; enrich_dropped: number },
+  beacon: BeaconLoss & { timestamp_ns: number },
   receivedAt: Date
 ): { stale: boolean; lossObservedAt: Date | null } {
   if (!previous) return { stale: false, lossObservedAt: null };
   if (Math.floor(beacon.timestamp_ns / 1_000_000) < previous.beaconAt.getTime()) {
     return { stale: true, lossObservedAt: previous.lossObservedAt };
   }
-  const rose =
-    BigInt(beacon.spool_dropped) > previous.spoolDropped ||
-    BigInt(beacon.enrich_dropped) > previous.enrichDropped;
+  const rose = LOSS_COUNTERS.some(([sent, stored]) => BigInt(beacon[sent]) > previous[stored]);
   return { stale: false, lossObservedAt: rose ? receivedAt : previous.lossObservedAt };
 }
 
