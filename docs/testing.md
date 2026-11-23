@@ -100,15 +100,13 @@ on `main`:
   secret. So `SERVER_URL` (default `http://localhost:3000`) is the Next.js server, not nginx.
 
 `CRON_SECRET` and `NGINX_PROXY_SECRET` default to the `.env.example` values; pass the server's
-own if it runs with others (`.env.test` uses `test_cron_secret`).
+own if it runs with others (`.env.test` uses `test_cron_secret`). The server must have
+`NGINX_PROXY_SECRET` set: `.env.test` sets none, and without it `verifyProxyAuth` refuses every
+agent call, whatever secret the script sends.
 
-A fresh stack has no tenant admin. To make one:
-
-1. Sign up: `POST /api/auth/sign-up/email` with `email`, `password` and `name`. The response
-   carries the user's `id`.
-2. Restart the server with that id in `PLATFORM_OPERATOR_USER_IDS`.
-3. Signed in as that user, `POST /api/admin/tenants` with `{"name": "..."}`. The caller becomes
-   the new tenant's owner.
+A fresh stack has no tenant admin: create one as
+[Create the first account and tenant](../README-SETUP.md#create-the-first-account-and-tenant)
+describes, then pass that account's email and password.
 
 ```sh
 E2E_EMAIL=admin@example.test E2E_PASSWORD=... npm run test:e2e

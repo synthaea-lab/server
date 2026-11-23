@@ -7,17 +7,19 @@
 #   admin's email and password and makes that tenant its session's active organization;
 # - agent routes trust the mTLS headers only when the request carries nginx's proxy secret
 #   (`verifyProxyAuth`), so agent calls send `X-Proxy-Secret` with the mTLS headers nginx would
-#   set. Point SERVER_URL at the Next.js server itself, not at nginx.
+#   set. Point SERVER_URL at the Next.js server itself, not at nginx, and run that server with
+#   NGINX_PROXY_SECRET set: without it every agent call is refused.
 #
 # Required:
 #   E2E_EMAIL, E2E_PASSWORD  a user who is `owner` or `admin` of a tenant. To create one on a fresh
-#                            stack, see "The acceptance script" in docs/testing.md.
+#                            stack, see "Create the first account and tenant" in README-SETUP.md.
 # Optional:
-#   SERVER_URL           default http://localhost:3000
+#   SERVER_URL           default http://localhost:3000 (it is also the Origin sent to better-auth,
+#                        so it must be one of `trustedOrigins` in lib/auth.ts)
 #   CRON_SECRET          default dev_cron_secret (.env.example)
 #   NGINX_PROXY_SECRET   default dev_nginx_secret_change_in_production (.env.example)
 #   E2E_TENANT_ID        the tenant to act in; default: the user's first organization
-#   SKIP_DOCKER_CHECK    set to skip the container checks of test 3
+#   SKIP_DOCKER_CHECK    set to skip the container report of test 3
 
 set -eu
 
@@ -35,6 +37,24 @@ print_success() { echo -e "${GREEN}✓ $1${NC}"; }
 print_error() { echo -e "${RED}✗ $1${NC}"; }
 print_info() { echo -e "${YELLOW}→ $1${NC}"; }
 
+fail() {
+    print_error "$1"
+    exit 1
+}
+
+# Passes when RESPONSE matches the extended regex PATTERN; otherwise prints it and stops the run.
+expect_response() {
+    local step=$1 pattern=$2 response=$3
+    if grep -Eq "$pattern" <<< "$response"; then
+        print_success "$step"
+        echo "   Response: $response"
+    else
+        print_error "$step: unexpected response"
+        echo "   Response: $response"
+        exit 1
+    fi
+}
+
 if [ -z "${E2E_EMAIL:-}" ] || [ -z "${E2E_PASSWORD:-}" ]; then
     print_error "E2E_EMAIL and E2E_PASSWORD (a tenant admin) are required; see the header of this script"
     exit 2
@@ -43,18 +63,25 @@ fi
 COOKIES=$(mktemp)
 trap 'rm -f "$COOKIES"' EXIT
 
+# -sS: quiet, but curl's own error (refused, reset, timeout) still reaches stderr.
 # better-auth checks the Origin of cookie-authenticated calls against `trustedOrigins` (lib/auth.ts).
 session_curl() {
-    curl -s -b "$COOKIES" -c "$COOKIES" -H "Origin: $SERVER_URL" -H "Content-Type: application/json" "$@"
+    curl -sS -b "$COOKIES" -c "$COOKIES" -H "Origin: $SERVER_URL" -H "Content-Type: application/json" "$@"
 }
 
 # What nginx sets on an agent request after verifying its client certificate (nginx.conf).
 agent_curl() {
-    curl -s \
+    curl -sS \
         -H "X-Proxy-Secret: $NGINX_PROXY_SECRET" \
         -H "X-Client-Cert-Verified: SUCCESS" \
         -H "X-Client-Cert-Subject: CN=$ENROLLMENT_ID,O=synthaea" \
         "$@"
+}
+
+# The sign-in body, JSON-encoded from the environment: a password with `"` or `\` stays valid
+# JSON, and it never appears in curl's argv (`ps`).
+credentials_json() {
+    node -e 'process.stdout.write(JSON.stringify({ email: process.env.E2E_EMAIL, password: process.env.E2E_PASSWORD }))'
 }
 
 echo "======================================"
@@ -79,8 +106,9 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 print_info "Signing in as $E2E_EMAIL"
-SIGNIN_RESPONSE=$(session_curl -X POST "$SERVER_URL/api/auth/sign-in/email" \
-    -d "{\"email\": \"$E2E_EMAIL\", \"password\": \"$E2E_PASSWORD\"}")
+BODY=$(credentials_json) || fail "Could not build the sign-in body (is node installed?)"
+SIGNIN_RESPONSE=$(session_curl -X POST "$SERVER_URL/api/auth/sign-in/email" --data-binary @- <<< "$BODY") \
+    || fail "Sign-in: curl failed"
 if grep -q '"token"' <<< "$SIGNIN_RESPONSE"; then
     print_success "Signed in"
 else
@@ -91,22 +119,13 @@ fi
 
 TENANT_ID="${E2E_TENANT_ID:-}"
 if [ -z "$TENANT_ID" ]; then
-    ORGS=$(session_curl "$SERVER_URL/api/auth/organization/list")
+    ORGS=$(session_curl "$SERVER_URL/api/auth/organization/list") || fail "Listing tenants: curl failed"
     TENANT_ID=$(grep -o '"id":"[^"]*"' <<< "$ORGS" | head -1 | cut -d'"' -f4 || true)
 fi
-if [ -z "$TENANT_ID" ]; then
-    print_error "$E2E_EMAIL belongs to no tenant"
-    exit 1
-fi
+[ -n "$TENANT_ID" ] || fail "$E2E_EMAIL belongs to no tenant"
 ACTIVE_RESPONSE=$(session_curl -X POST "$SERVER_URL/api/auth/organization/set-active" \
-    -d "{\"organizationId\": \"$TENANT_ID\"}")
-if grep -q "\"id\":\"$TENANT_ID\"" <<< "$ACTIVE_RESPONSE"; then
-    print_success "Active tenant: $TENANT_ID"
-else
-    print_error "Could not make $TENANT_ID the active tenant"
-    echo "   Response: $ACTIVE_RESPONSE"
-    exit 1
-fi
+    -d "{\"organizationId\": \"$TENANT_ID\"}") || fail "Setting the active tenant: curl failed"
+expect_response "Active tenant: $TENANT_ID" "\"id\":\"$TENANT_ID\"" "$ACTIVE_RESPONSE"
 echo ""
 
 print_info "Enrolling agent: $ENROLLMENT_ID"
@@ -115,15 +134,8 @@ ENROLL_RESPONSE=$(session_curl -X POST "$SERVER_URL/api/enrollment" \
         \"enrollmentId\": \"$ENROLLMENT_ID\",
         \"hostname\": \"acceptance-test-vm\",
         \"version\": \"0.1.0\"
-    }")
-if grep -q '"status":"\(already_\)\?enrolled"' <<< "$ENROLL_RESPONSE"; then
-    print_success "Agent enrolled"
-    echo "   Response: $ENROLL_RESPONSE"
-else
-    print_error "Agent enrollment failed"
-    echo "   Response: $ENROLL_RESPONSE"
-    exit 1
-fi
+    }") || fail "Enrollment: curl failed"
+expect_response "Agent enrolled" '"status":"(already_)?enrolled"' "$ENROLL_RESPONSE"
 echo ""
 
 print_info "Uploading a detection from the agent"
@@ -143,25 +155,15 @@ DETECTION_RESPONSE=$(agent_curl -X POST "$SERVER_URL/api/ingest/detection" \
             \"hostname\": \"acceptance-test-vm\",
             \"user\": \"root\"
         }
-    }")
-if grep -q '"status":"accepted"' <<< "$DETECTION_RESPONSE"; then
-    print_success "Detection accepted"
-    echo "   Response: $DETECTION_RESPONSE"
-else
-    print_error "Detection upload failed"
-    echo "   Response: $DETECTION_RESPONSE"
-    exit 1
-fi
+    }") || fail "Detection upload: curl failed"
+expect_response "Detection accepted" '"status":"accepted"' "$DETECTION_RESPONSE"
 echo ""
 
 print_info "Opening the console with the session"
-CONSOLE_STATUS=$(session_curl -o /dev/null -w "%{http_code}" "$SERVER_URL/console/cases")
-if [ "$CONSOLE_STATUS" = "200" ]; then
-    print_success "Console answers the session (HTTP 200)"
-else
-    print_error "Console did not answer the session (HTTP $CONSOLE_STATUS)"
-    exit 1
-fi
+CONSOLE_STATUS=$(session_curl -o /dev/null -w "%{http_code}" "$SERVER_URL/console/cases") \
+    || fail "Console: curl failed"
+[ "$CONSOLE_STATUS" = "200" ] || fail "Console did not answer the session (HTTP $CONSOLE_STATUS)"
+print_success "Console answers the session (HTTP 200)"
 echo ""
 
 print_success "Test 1 PASSED: enrollment, detection upload and console"
@@ -173,53 +175,38 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 print_info "Sending a heartbeat from the agent"
-HEARTBEAT_RESPONSE=$(agent_curl -X POST "$SERVER_URL/api/ingest/heartbeat")
-if grep -q '"status":"ok"' <<< "$HEARTBEAT_RESPONSE"; then
-    print_success "Heartbeat accepted"
-    echo "   Response: $HEARTBEAT_RESPONSE"
-else
-    print_error "Heartbeat failed"
-    echo "   Response: $HEARTBEAT_RESPONSE"
-    exit 1
-fi
+HEARTBEAT_RESPONSE=$(agent_curl -X POST "$SERVER_URL/api/ingest/heartbeat") || fail "Heartbeat: curl failed"
+expect_response "Heartbeat accepted" '"status":"ok"' "$HEARTBEAT_RESPONSE"
 echo ""
 
 print_info "Running the silent-agent job (an agent is silent after 5 minutes without a heartbeat)"
-CRON_RESPONSE=$(curl -s "$SERVER_URL/api/cron/detect-silent-agents" \
-    -H "Authorization: Bearer $CRON_SECRET")
-if grep -q '"silentAgents"' <<< "$CRON_RESPONSE"; then
-    print_success "Silent-agent job ran"
-    echo "   Response: $CRON_RESPONSE"
-else
-    print_error "Silent-agent job failed"
-    echo "   Response: $CRON_RESPONSE"
-    exit 1
-fi
+CRON_RESPONSE=$(curl -sS "$SERVER_URL/api/cron/detect-silent-agents" \
+    -H "Authorization: Bearer $CRON_SECRET") || fail "Silent-agent job: curl failed"
+expect_response "Silent-agent job ran" '"silentAgents"' "$CRON_RESPONSE"
 echo ""
 
 print_success "Test 2 PASSED: heartbeat and silent-agent job"
 echo ""
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Test 3: Docker Compose dev stack"
+echo "Test 3: Docker Compose dev stack (report only)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-if [ -z "${SKIP_DOCKER_CHECK:-}" ] && docker compose version > /dev/null 2>&1; then
-    for service in postgres server; do
+# Information, not a check: the HTTP steps above already proved the server and its database
+# answer, and the server may well run outside the stack (`npm run dev`).
+if [ -n "${SKIP_DOCKER_CHECK:-}" ]; then
+    print_info "Container report skipped (SKIP_DOCKER_CHECK is set)"
+elif ! docker compose version > /dev/null 2>&1; then
+    print_info "Container report skipped (no docker compose on this host)"
+else
+    for service in postgres server proxy; do
         if docker compose ps --status running "$service" 2>/dev/null | grep -q "$service"; then
-            print_success "$service container is running"
+            print_info "$service container is running"
         else
-            print_error "$service container is not running"
+            print_info "$service container is not running in this stack"
         fi
     done
-    if docker compose ps --status running proxy 2>/dev/null | grep -q proxy; then
-        print_success "nginx proxy container is running"
-    else
-        print_info "nginx proxy not running (optional for dev)"
-    fi
-else
-    print_info "Skipping container checks (SKIP_DOCKER_CHECK set, or no docker compose)"
 fi
 echo ""
 
