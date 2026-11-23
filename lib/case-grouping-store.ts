@@ -4,14 +4,14 @@ import {
   groupingTechnique,
   planGrouping,
   type GroupingPlan,
-  type OpenCase,
+  type ActiveCase,
   type UngroupedDetection,
 } from "@/lib/case-grouping";
 import { ACTIVE_CASE_STATUSES } from "@/lib/hunt-search";
 
 /**
  * The database side of the detection-grouping cron (issue #50): read one tenant's ungrouped
- * detections and open cases, let `planGrouping` decide, then write the plan. Every function runs
+ * detections and active cases, let `planGrouping` decide, then write the plan. Every function runs
  * inside the transaction and advisory lock `runPerTenant` holds for the tenant.
  */
 
@@ -37,7 +37,7 @@ export function loadUngrouped(tx: Prisma.TransactionClient, tenantId: string): P
  * with its grouping technique. An `investigating` case still takes related detections: otherwise a new
  * case would open beside the one an analyst is working (issue #85).
  */
-export async function loadOpenCases(tx: Prisma.TransactionClient, tenantId: string): Promise<OpenCase[]> {
+export async function loadActiveCases(tx: Prisma.TransactionClient, tenantId: string): Promise<ActiveCase[]> {
   // Only `meta.techniques` is read for the evidence already in active cases: the rest of
   // `meta` (attributions, further triggering events) is not needed to group.
   const listedRows = await tx.$queryRaw<{ id: string; techniques: unknown }[]>`
@@ -103,7 +103,7 @@ export async function groupOneTenant(tx: Prisma.TransactionClient, tenantId: str
     return { casesCreated: 0, detectionsGrouped: 0, moreWorkLikely: false };
   }
 
-  const plan = planGrouping(ungrouped, await loadOpenCases(tx, tenantId), await loadHostnames(tx, tenantId));
+  const plan = planGrouping(ungrouped, await loadActiveCases(tx, tenantId), await loadHostnames(tx, tenantId));
   await applyGroupingPlan(tx, tenantId, plan);
 
   return {

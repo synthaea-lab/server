@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { GROUPING_TIME_WINDOW_MS, planGrouping, type OpenCase, type UngroupedDetection } from "@/lib/case-grouping";
+import { GROUPING_TIME_WINDOW_MS, planGrouping, type ActiveCase, type UngroupedDetection } from "@/lib/case-grouping";
 
 const T0 = new Date("2026-01-01T00:00:00Z").getTime();
 const at = (minutes: number) => new Date(T0 + minutes * 60_000);
@@ -22,7 +22,7 @@ function detection(overrides: Partial<UngroupedDetection> = {}): UngroupedDetect
   };
 }
 
-function openCase(id: string, severity: string, evidence: Partial<OpenCase["detections"][number]>[]): OpenCase {
+function activeCase(id: string, severity: string, evidence: Partial<ActiveCase["detections"][number]>[]): ActiveCase {
   return {
     id,
     severity,
@@ -32,7 +32,7 @@ function openCase(id: string, severity: string, evidence: Partial<OpenCase["dete
 
 describe("planGrouping", () => {
   it("plans nothing for no detections", () => {
-    const plan = planGrouping([], [openCase("c1", "low", [{}])], HOSTS);
+    const plan = planGrouping([], [activeCase("c1", "low", [{}])], HOSTS);
     expect(plan).toEqual({ newCases: [], assignments: new Map(), severityBumps: new Map() });
   });
 
@@ -46,16 +46,16 @@ describe("planGrouping", () => {
     ]);
   });
 
-  it("attaches a related detection from the same agent to an existing open case", () => {
+  it("attaches a related detection from the same agent to an existing active case", () => {
     const d = detection({ technique: "T1059.003", timestamp: at(10) });
-    const plan = planGrouping([d], [openCase("c1", "high", [{}])], HOSTS);
+    const plan = planGrouping([d], [activeCase("c1", "high", [{}])], HOSTS);
     expect(plan.newCases).toEqual([]);
     expect(plan.assignments).toEqual(new Map([["c1", [d.id]]]));
     expect(plan.severityBumps).toEqual(new Map());
   });
 
   it("does not attach across agents, unrelated techniques or outside the window", () => {
-    const open = [openCase("c1", "low", [{}])];
+    const open = [activeCase("c1", "low", [{}])];
     const otherAgent = detection({ agentId: "agent-b", timestamp: at(1) });
     const unrelated = detection({ technique: "T1105", timestamp: at(1) });
     const late = detection({ timestamp: new Date(T0 + GROUPING_TIME_WINDOW_MS + 1) });
@@ -68,20 +68,20 @@ describe("planGrouping", () => {
 
   it("matches on meta.techniques of the incoming detection and on the stored evidence tag", () => {
     const d = detection({ technique: "T1566.001", meta: { techniques: ["T1566.001", "T1204.002"] }, timestamp: at(1) });
-    const plan = planGrouping([d], [openCase("c1", "low", [{ technique: "T1204" }])], HOSTS);
+    const plan = planGrouping([d], [activeCase("c1", "low", [{ technique: "T1204" }])], HOSTS);
     expect(plan.assignments).toEqual(new Map([["c1", [d.id]]]));
   });
 
-  it("never matches an open case without evidence", () => {
+  it("never matches an active case without evidence", () => {
     const d = detection();
-    const plan = planGrouping([d], [openCase("empty", "low", [])], HOSTS);
+    const plan = planGrouping([d], [activeCase("empty", "low", [])], HOSTS);
     expect(plan.assignments.size).toBe(0);
     expect(plan.newCases).toHaveLength(1);
   });
 
   it("prefers the first matching case, existing cases before new ones", () => {
     const d = detection({ timestamp: at(5) });
-    const plan = planGrouping([d], [openCase("c1", "low", [{}]), openCase("c2", "low", [{}])], HOSTS);
+    const plan = planGrouping([d], [activeCase("c1", "low", [{}]), activeCase("c2", "low", [{}])], HOSTS);
     expect(plan.assignments).toEqual(new Map([["c1", [d.id]]]));
   });
 
@@ -103,7 +103,7 @@ describe("planGrouping", () => {
   });
 
   it("anchors on the earliest existing evidence, whatever its order", () => {
-    const open = openCase("c1", "low", [{ timestamp: at(25) }, { timestamp: at(0) }]);
+    const open = activeCase("c1", "low", [{ timestamp: at(25) }, { timestamp: at(0) }]);
     const plan = planGrouping([detection({ timestamp: at(40) })], [open], HOSTS);
     expect(plan.assignments.size).toBe(0);
   });
@@ -114,7 +114,7 @@ describe("planGrouping", () => {
       detection({ severity: "low", timestamp: at(2) }),
       detection({ severity: "critical", timestamp: at(3) }),
     ];
-    const plan = planGrouping(ds, [openCase("c1", "medium", [{}])], HOSTS);
+    const plan = planGrouping(ds, [activeCase("c1", "medium", [{}])], HOSTS);
     expect(plan.severityBumps).toEqual(new Map([["c1", "critical"]]));
     expect(plan.assignments.get("c1")).toEqual(ds.map((d) => d.id));
   });
@@ -128,12 +128,12 @@ describe("planGrouping", () => {
   });
 
   it("never lets an unknown severity outrank a known one", () => {
-    const plan = planGrouping([detection({ severity: "info", timestamp: at(1) })], [openCase("c1", "low", [{}])], HOSTS);
+    const plan = planGrouping([detection({ severity: "info", timestamp: at(1) })], [activeCase("c1", "low", [{}])], HOSTS);
     expect(plan.severityBumps.size).toBe(0);
   });
 
   it("does not modify its inputs", () => {
-    const open = [openCase("c1", "low", [{}])];
+    const open = [activeCase("c1", "low", [{}])];
     const snapshot = structuredClone(open);
     planGrouping([detection({ severity: "high", timestamp: at(1) })], open, HOSTS);
     expect(open).toEqual(snapshot);

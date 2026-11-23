@@ -40,10 +40,6 @@ describe("which cases count as an existing silent-agent case", () => {
     // status in `CASE_STATUSES` fails here until somebody decides which it is.
     const closed = ["resolved", "false_positive"];
     const active = new Set<string>(ACTIVE_CASE_STATUSES);
-    const unclassified = CASE_STATUSES.filter((st) => !active.has(st) && !closed.includes(st));
-    expect(unclassified).toEqual([]);
-    // And the closed list names real statuses (a renamed status cannot linger in it).
-    expect(closed.filter((st) => !(CASE_STATUSES as readonly string[]).includes(st))).toEqual([]);
     expect(CASE_STATUSES.filter((st) => !active.has(st))).toEqual(closed);
   });
 
