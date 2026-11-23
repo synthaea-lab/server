@@ -62,6 +62,18 @@ const corpusVersion = (tenantId: string, version: number, status = "collecting",
     data: { tenantId, version, status, sampleCount, collectionStart: new Date() },
   });
 
+/** Waits until a backend is blocked on a row lock, so a test knows the request reached it. */
+async function waitForLockWait() {
+  for (let i = 0; i < 200; i++) {
+    const rows = await prisma.$queryRaw<{ n: bigint }[]>`
+      SELECT count(*) AS n FROM pg_stat_activity
+      WHERE datname = current_database() AND wait_event_type = 'Lock'`;
+    if (Number(rows[0].n) > 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  throw new Error("no backend ever waited on a lock");
+}
+
 afterAll(async () => {
   await cleanDatabase();
   await prisma.$disconnect();
@@ -214,25 +226,23 @@ describe("POST /api/corpus/submit", () => {
     expect(await prisma.corpusSample.count()).toBe(8);
   });
 
-  it("refuses a submit that waits on a finalize and inserts nothing into the finalized version (SV-019)", async () => {
+  it("refuses a submit that waits on a finalize, rolls its samples back and leaves the count alone (SV-019)", async () => {
     // The status was read, then checked, then the samples were inserted, as separate
     // statements: a finalize that committed in between left samples in a finalized version.
-    // Here a transaction holds the version row, finalizes it, and commits after the submit
-    // has started; the submit must see the finalized status.
+    // Here a transaction claims the version row (as finalize does), the submit inserts its
+    // samples and blocks on the guarded count update, and the claim commits: the submit must
+    // answer 409 and its samples must not survive.
     const tenant = await createTestTenant();
     await createTestAgent(tenant.id, "e-toctou");
     const version = await corpusVersion(tenant.id, 1);
 
     let submitted: Promise<Response> | undefined;
     await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM corpus_versions WHERE id = ${version.id} FOR UPDATE`;
+      await tx.corpusVersion.update({ where: { id: version.id }, data: { status: "finalizing" } });
       submitted = submitReq("e-toctou", { corpusVersion: 1, samples: [sample("2026-01-01T00:00:00Z")] });
-      // Let the submit run into the lock (or, on the unlocked code, past the status read).
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      await tx.corpusVersion.update({
-        where: { id: version.id },
-        data: { status: "finalized", collectionEnd: new Date() },
-      });
+      // Not a sleep: the submit may also have read the status before the claim, in which case
+      // it still ends up blocked on the count update, and the wait below returns.
+      await waitForLockWait();
     });
 
     const res = await submitted!;
@@ -368,6 +378,44 @@ describe("POST /api/corpus/finalize", () => {
       resource: `corpus_versions/${version.id}`,
       details: { version: 1, sampleCount: 2, exportUrl, exportSha256: sha256 },
     });
+  });
+
+  it("exports a batch whose submit is committing when the finalize starts (SV-019)", async () => {
+    // Finalize used to export, then set `finalized`, with no lock: a batch committed in
+    // between was counted in `sampleCount` but missing from the JSONL and its hash. Now the
+    // finalize claims the row first, so it waits for the committing batch and exports it.
+    const { tenantId, userId } = await tenantWithMember("admin");
+    const agent = await createTestAgent(tenantId, "e-fin-race");
+    const version = await corpusVersion(tenantId, 1);
+
+    let finalized: Promise<Response> | undefined;
+    await prisma.$transaction(async (tx) => {
+      await tx.corpusSample.create({
+        data: { tenantId, corpusVersionId: version.id, agentId: agent.id, timestamp: new Date("2026-01-01T00:00:00Z"), eventType: "exec", event: { pid: 1 } },
+      });
+      await tx.corpusVersion.update({ where: { id: version.id }, data: { sampleCount: { increment: 1 } } });
+      finalized = finalize(finalizeReq(tenantId, userId, { version: 1 }));
+      await waitForLockWait();
+    });
+
+    const res = await finalized!;
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.sampleCount).toBe(1);
+    const written = await readFile(path.join(workDir, "storage", "corpus", tenantId, "corpus-v1.jsonl"), "utf-8");
+    expect(written.split("\n").filter(Boolean)).toHaveLength(1);
+    expect(body.exportSha256).toBe(createHash("sha256").update(written).digest("hex"));
+  });
+
+  it("refuses a submit while the version is being finalized", async () => {
+    const tenant = await createTestTenant();
+    await createTestAgent(tenant.id, "e-finalizing");
+    await corpusVersion(tenant.id, 1, "finalizing");
+
+    const res = await submitReq("e-finalizing", { corpusVersion: 1, samples: [sample("2026-01-01T00:00:00Z")] });
+
+    expect(res.status).toBe(409);
+    expect(await prisma.corpusSample.count()).toBe(0);
   });
 
   it("reports the stored sample count, not the number of exported rows", async () => {

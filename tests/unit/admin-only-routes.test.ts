@@ -6,7 +6,7 @@ import { join } from "path";
 // Route logic runs against a mocked Prisma client, so these need no database.
 const db = vi.hoisted(() => ({
   agent: { findFirst: vi.fn(), update: vi.fn() },
-  corpusVersion: { findUnique: vi.fn(), update: vi.fn() },
+  corpusVersion: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   corpusSample: { findMany: vi.fn() },
   auditLog: { create: vi.fn() },
   member: { findFirst: vi.fn() },
@@ -43,6 +43,7 @@ beforeEach(() => {
   db.agent.update.mockImplementation(async ({ where, data }) => ({ id: where.id, ...data }));
   db.corpusVersion.findUnique.mockResolvedValue({ id: "cv1", version: 1, status: "collecting" });
   db.corpusVersion.update.mockImplementation(async ({ data }) => ({ id: "cv1", sampleCount: 0, ...data }));
+  db.corpusVersion.updateMany.mockResolvedValue({ count: 1 });
   db.corpusSample.findMany.mockResolvedValue([]);
   db.auditLog.create.mockResolvedValue({});
   db.member.findFirst.mockResolvedValue({ role: "owner" });

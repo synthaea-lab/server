@@ -72,7 +72,9 @@ export async function POST(req: NextRequest) {
 
     const result = await submitSamples(prisma, agent, { corpusVersion, samples });
 
-    // Refuse a version that is no longer collecting
+    if (result.outcome === "versionGone") {
+      return NextResponse.json({ error: "Corpus version not found" }, { status: 404 });
+    }
     if (result.outcome === "notCollecting") {
       return NextResponse.json(
         {

@@ -64,82 +64,112 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Fetch all samples for this version
-    const samples = await prisma.corpusSample.findMany({
-      where: {
-        corpusVersionId: version.id,
-      },
-      orderBy: { timestamp: "asc" },
-      select: {
-        timestamp: true,
-        eventType: true,
-        event: true,
-        agentId: true,
-      },
+    // Claim the version before exporting: the guarded update takes the row lock, so it waits
+    // for a submit that is committing, and every later submit sees `finalizing` and is
+    // refused. The export below therefore reads every sample that `sampleCount` counts.
+    const claimed = await prisma.corpusVersion.updateMany({
+      where: { id: version.id, status: "collecting" },
+      data: { status: "finalizing" },
     });
+    if (claimed.count === 0) {
+      const current = await prisma.corpusVersion.findUnique({
+        where: { id: version.id },
+        select: { status: true },
+      });
+      return NextResponse.json(
+        {
+          error: "Corpus already finalized",
+          message: `Version ${versionNumber} is already in status: ${current?.status ?? "missing"}`,
+        },
+        { status: 409 }
+      );
+    }
 
-    // Export to JSONL
-    const exportDir = path.join(
-      process.cwd(),
-      "storage",
-      "corpus",
-      tenantId
-    );
-    await fs.mkdir(exportDir, { recursive: true });
+    try {
+      // Fetch all samples for this version
+      const samples = await prisma.corpusSample.findMany({
+        where: {
+          corpusVersionId: version.id,
+        },
+        orderBy: { timestamp: "asc" },
+        select: {
+          timestamp: true,
+          eventType: true,
+          event: true,
+          agentId: true,
+        },
+      });
 
-    const exportFilename = `corpus-v${versionNumber}.jsonl`;
-    const exportPath = path.join(exportDir, exportFilename);
+      // Export to JSONL
+      const exportDir = path.join(
+        process.cwd(),
+        "storage",
+        "corpus",
+        tenantId
+      );
+      await fs.mkdir(exportDir, { recursive: true });
 
-    // Write JSONL (one JSON object per line)
-    const jsonlLines = samples.map((sample) =>
-      JSON.stringify({
-        timestamp: sample.timestamp.toISOString(),
-        event_type: sample.eventType,
-        event: sample.event,
-        agent_id: sample.agentId,
-      })
-    );
-    await fs.writeFile(exportPath, jsonlLines.join("\n") + "\n", "utf-8");
+      const exportFilename = `corpus-v${versionNumber}.jsonl`;
+      const exportPath = path.join(exportDir, exportFilename);
 
-    // Compute SHA-256 of export file
-    const fileBuffer = await fs.readFile(exportPath);
-    const sha256 = crypto.createHash("sha256").update(fileBuffer).digest("hex");
+      // Write JSONL (one JSON object per line)
+      const jsonlLines = samples.map((sample) =>
+        JSON.stringify({
+          timestamp: sample.timestamp.toISOString(),
+          event_type: sample.eventType,
+          event: sample.event,
+          agent_id: sample.agentId,
+        })
+      );
+      await fs.writeFile(exportPath, jsonlLines.join("\n") + "\n", "utf-8");
 
-    // Update corpus version with export details
-    const exportUrl = `/storage/corpus/${tenantId}/${exportFilename}`;
-    const finalizedVersion = await prisma.corpusVersion.update({
-      where: { id: version.id },
-      data: {
-        status: "finalized",
-        collectionEnd: new Date(),
-        exportUrl,
-        exportSha256: sha256,
-      },
-    });
+      // Compute SHA-256 of export file
+      const fileBuffer = await fs.readFile(exportPath);
+      const sha256 = crypto.createHash("sha256").update(fileBuffer).digest("hex");
 
-    // Audit log
-    await prisma.auditLog.create({
-      data: {
-        tenantId,
-        userId,
-        action: "corpus.version.finalize",
-        resource: `corpus_versions/${version.id}`,
-        details: {
-          version: versionNumber,
-          sampleCount: finalizedVersion.sampleCount,
+      // Update corpus version with export details
+      const exportUrl = `/storage/corpus/${tenantId}/${exportFilename}`;
+      const finalizedVersion = await prisma.corpusVersion.update({
+        where: { id: version.id },
+        data: {
+          status: "finalized",
+          collectionEnd: new Date(),
           exportUrl,
           exportSha256: sha256,
         },
-      },
-    });
+      });
 
-    return NextResponse.json({
-      status: "finalized",
-      version: versionNumber,
-      sampleCount: finalizedVersion.sampleCount,
-      exportUrl,
-      exportSha256: sha256,
-    });
+      // Audit log
+      await prisma.auditLog.create({
+        data: {
+          tenantId,
+          userId,
+          action: "corpus.version.finalize",
+          resource: `corpus_versions/${version.id}`,
+          details: {
+            version: versionNumber,
+            sampleCount: finalizedVersion.sampleCount,
+            exportUrl,
+            exportSha256: sha256,
+          },
+        },
+      });
+
+      return NextResponse.json({
+        status: "finalized",
+        version: versionNumber,
+        sampleCount: finalizedVersion.sampleCount,
+        exportUrl,
+        exportSha256: sha256,
+      });
+    } catch (error) {
+      // Nothing was finalized: reopen the version so submits and a retry work again.
+      await prisma.corpusVersion.updateMany({
+        where: { id: version.id, status: "finalizing" },
+        data: { status: "collecting" },
+      });
+      throw error;
+    }
   } catch (error) {
     console.error("Corpus finalize error:", error);
     return NextResponse.json(

@@ -121,6 +121,13 @@ The corpus routes (`app/api/corpus/*`) store benign telemetry samples per tenant
 a finalized version as JSONL for model training. They are not yet part of the agent protocol:
 the submit route is not on the middleware's list of agent paths.
 
+A version's `status` moves `collecting` to `finalizing` to `finalized`. Submit inserts its
+samples first and locks the version row last, with a guarded `UPDATE ... WHERE status =
+'collecting'`; finalize claims the row (`finalizing`) before it reads the samples. A submit
+that loses the race rolls back and answers 409, so the export holds every sample that
+`sampleCount` counts. A finalize that fails while exporting puts the version back to
+`collecting`.
+
 ## Data flows
 
 ### From an agent's upload to a case
