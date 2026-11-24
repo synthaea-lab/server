@@ -46,6 +46,13 @@ const getFleet = async (tenantId: string) =>
       tamperEvents: number;
       parentImageEvictedLive: number;
       parentImageEvictedDead: number;
+      alertsDropped: number;
+      etwShedding: {
+        pidCacheEvicted: number;
+        siloEvicted: number;
+        marksDropped: number;
+        quarantineUnremembered: number;
+      };
       sensors: unknown[];
     } | null;
   }[];
@@ -211,6 +218,26 @@ describe("fleet health against a real database (issue #83)", () => {
     });
   });
 
+  it("stores the alerts not written and what the ETW caches shed, and shows them in the fleet view (#91)", async () => {
+    const tenant = await createTestTenant();
+    await createTestAgent(tenant.id, "agent-h9");
+    await beat("agent-h9", {
+      beacon: beacon({
+        alerts_dropped: 8,
+        etw_pid_cache_evicted: 40,
+        etw_silo_evicted: 2,
+        etw_marks_dropped: 1,
+        etw_quarantine_unremembered: 7,
+      }),
+    });
+
+    const [row] = await getFleet(tenant.id);
+    expect(row.health).toMatchObject({
+      alertsDropped: 8,
+      etwShedding: { pidCacheEvicted: 40, siloEvicted: 2, marksDropped: 1, quarantineUnremembered: 7 },
+    });
+  });
+
   it("stores the beacon of an agent that predates those counters, with zeros", async () => {
     const tenant = await createTestTenant();
     await createTestAgent(tenant.id, "agent-h8");
@@ -222,6 +249,8 @@ describe("fleet health against a real database (issue #83)", () => {
       tamperEvents: 0,
       parentImageEvictedLive: 0,
       parentImageEvictedDead: 0,
+      alertsDropped: 0,
+      etwShedding: { pidCacheEvicted: 0, siloEvicted: 0, marksDropped: 0, quarantineUnremembered: 0 },
     });
   });
 

@@ -3,6 +3,7 @@ import {
   fleetStatus,
   lostRecently,
   sensorsOf,
+  type EtwShedding,
   type FleetStatus,
   type SensorState,
 } from "@/lib/fleet-health";
@@ -40,6 +41,10 @@ export type FleetAgent = {
     iocIndicators: number;
     iocFindings: number;
     iocCooledDown: number;
+    /** Alerts that could not be written to `alerts.ndjson` since the agent started (#91). */
+    alertsDropped: number;
+    /** What the Windows ETW sensor's caches shed since it started; zeros elsewhere (#91). */
+    etwShedding: EtwShedding;
     sensors: SensorState[];
   } | null;
 };
@@ -92,6 +97,13 @@ export async function loadFleet(
           iocIndicators: Number(a.health.iocIndicators),
           iocFindings: Number(a.health.iocFindings),
           iocCooledDown: Number(a.health.iocCooledDown),
+          alertsDropped: Number(a.health.alertsDropped),
+          etwShedding: {
+            pidCacheEvicted: Number(a.health.etwPidCacheEvicted),
+            siloEvicted: Number(a.health.etwSiloEvicted),
+            marksDropped: Number(a.health.etwMarksDropped),
+            quarantineUnremembered: Number(a.health.etwQuarantineUnremembered),
+          },
           sensors,
         },
       };

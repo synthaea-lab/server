@@ -45,17 +45,58 @@ export function iocFeedSummary(ioc: { iocIndicators: number; iocFindings: number
   return ioc.iocCooledDown > 0 ? `${base}, ${ioc.iocCooledDown} repeats held back` : base;
 }
 
+/** The Windows ETW sensor's cache counters, as the beacon names them (agent#314). */
+export type EtwShedding = {
+  /** Pid-cache entries evicted at the cap: a later event of that process misses its image. */
+  pidCacheEvicted: number;
+  /** Silo-directory entries evicted at the cap: the container is looked up again. */
+  siloEvicted: number;
+  /** `Zone.Identifier` marks dropped from the read-back queue: each is a lost `FileQuarantine`. */
+  marksDropped: number;
+  /** Quarantine paths reported without dedup (map full): a possible duplicate, never a loss. */
+  quarantineUnremembered: number;
+};
+
+/**
+ * The ETW caches' shedding in one cell: "none" when nothing was shed (every non-Windows host), else
+ * only the counters that moved. Lost quarantine marks come first: they are the one real loss.
+ */
+export function etwSheddingSummary(shed: EtwShedding): string {
+  const parts = [
+    [shed.marksDropped, "quarantine marks lost"],
+    [shed.pidCacheEvicted, "pid-cache evictions"],
+    [shed.siloEvicted, "silo evictions"],
+    [shed.quarantineUnremembered, "quarantines not deduplicated"],
+  ] as const;
+  const moved = parts.filter(([count]) => count > 0).map(([count, what]) => `${count} ${what}`);
+  return moved.length === 0 ? "none" : moved.join(", ");
+}
+
 /** What `agent_health` holds about an agent's last beacon, as far as loss detection reads it. */
 export type StoredLoss = {
   beaconAt: Date;
   spoolDropped: bigint;
   enrichDropped: bigint;
+  etwMarksDropped: bigint;
   lossObservedAt: Date | null;
 };
 
+/** A beacon's loss counters, by the name the agent sends them under. */
+type BeaconLoss = { spool_dropped: number; enrich_dropped: number; etw_marks_dropped: number };
+
 /**
- * The loss stamp after a beacon arrives (#83). The agent's loss counters (`spool_dropped`,
- * `enrich_dropped`) are cumulative since it started and the server keeps only the latest beacon,
+ * Each counter that counts telemetry which never reaches the server, paired with the column it is
+ * stored in. A lost quarantine mark is a `FileQuarantine` event that is never sent (agent#314).
+ */
+const LOSS_COUNTERS = [
+  ["spool_dropped", "spoolDropped"],
+  ["enrich_dropped", "enrichDropped"],
+  ["etw_marks_dropped", "etwMarksDropped"],
+] as const satisfies ReadonlyArray<readonly [keyof BeaconLoss, keyof StoredLoss]>;
+
+/**
+ * The loss stamp after a beacon arrives (#83). The agent's loss counters ([`LOSS_COUNTERS`]) are
+ * cumulative since it started and the server keeps only the latest beacon,
  * so a recent loss is told by a counter *rising* between two beacons, stamped with the server's
  * receive time (not the agent's clock, which can be skewed).
  *
@@ -64,21 +105,20 @@ export type StoredLoss = {
  * - A counter that fell is an agent restart, not loss, and neither sets nor clears the stamp.
  * - A beacon older than the stored one is `stale`: the caller must not store it, or its lower
  *   counters would make the next real beacon look like a rise.
- * - Only the two loss counters count; the rarity evidence counters are information about a
- *   feature, not lost telemetry.
+ * - Only the loss counters count. The rarity evidence counters are information about a feature,
+ *   `alerts_dropped` counts alerts that still reached stderr and `cli detections`, and the other
+ *   ETW counters degrade enrichment: none of them is telemetry the server never receives.
  */
 export function nextLossObservedAt(
   previous: StoredLoss | null,
-  beacon: { timestamp_ns: number; spool_dropped: number; enrich_dropped: number },
+  beacon: BeaconLoss & { timestamp_ns: number },
   receivedAt: Date
 ): { stale: boolean; lossObservedAt: Date | null } {
   if (!previous) return { stale: false, lossObservedAt: null };
   if (Math.floor(beacon.timestamp_ns / 1_000_000) < previous.beaconAt.getTime()) {
     return { stale: true, lossObservedAt: previous.lossObservedAt };
   }
-  const rose =
-    BigInt(beacon.spool_dropped) > previous.spoolDropped ||
-    BigInt(beacon.enrich_dropped) > previous.enrichDropped;
+  const rose = LOSS_COUNTERS.some(([sent, stored]) => BigInt(beacon[sent]) > previous[stored]);
   return { stale: false, lossObservedAt: rose ? receivedAt : previous.lossObservedAt };
 }
 
