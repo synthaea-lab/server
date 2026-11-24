@@ -1,30 +1,31 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 // `lib/auth.ts` reads the environment once, when it is imported: each case sets it, resets the module
 // registry and imports the module again.
 async function loadAuth(origins: string | undefined) {
-  if (origins === undefined) delete process.env.AUTH_TRUSTED_ORIGINS;
-  else process.env.AUTH_TRUSTED_ORIGINS = origins;
+  vi.stubEnv("AUTH_TRUSTED_ORIGINS", origins);
   vi.resetModules();
   return (await import("@/lib/auth")).auth;
 }
 
-// The variables the tests set, put back to what they were so no other file sees a change.
-const initial = { AUTH_TRUSTED_ORIGINS: process.env.AUTH_TRUSTED_ORIGINS, NODE_ENV: process.env.NODE_ENV, TEST: process.env.TEST };
-
 // better-auth skips its origin check when it sees a test environment (read once, when it is imported).
-// The tests that exercise the check import it as it runs in production; `afterEach` restores both.
+// The tests that exercise the check import it as it runs in production; `afterEach` puts the
+// environment back.
 async function loadAuthWithOriginCheck(origins: string) {
-  (process.env as Record<string, string | undefined>).NODE_ENV = "production";
-  delete process.env.TEST;
+  vi.stubEnv("NODE_ENV", "production");
+  vi.stubEnv("TEST", undefined);
   return loadAuth(origins);
 }
 
+// The first import of better-auth transforms the whole package (vitest.config.ts inlines it), which
+// takes several seconds on a slow runner. Pay it here, not inside the first test's 5 s budget.
+beforeAll(async () => {
+  await import("@/lib/auth");
+}, 60_000);
+
 afterEach(() => {
-  for (const [name, value] of Object.entries(initial)) {
-    if (value === undefined) delete process.env[name];
-    else process.env[name] = value;
-  }
+  vi.unstubAllEnvs();
+  delete process.env.AUTH_TRUSTED_ORIGINS;
   vi.resetModules();
 });
 
@@ -58,9 +59,9 @@ describe("lib/auth trusted origins", () => {
     expect(response.status).toBe(403);
   });
 
-  it("does not refuse a cookie-bearing request from a configured Origin on the origin check", async () => {
+  it("accepts a cookie-bearing request from a configured Origin", async () => {
     const auth = await loadAuthWithOriginCheck("https://console.example.com");
     const response = await auth.handler(signOutFrom("https://console.example.com"));
-    expect(response.status).not.toBe(403);
+    expect(response.status).toBe(200);
   });
 });

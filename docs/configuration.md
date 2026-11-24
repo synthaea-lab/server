@@ -3,7 +3,7 @@
 The server is configured only through environment variables. There is no configuration file;
 [`.env.example`](../.env.example) lists the core variables for a run outside Docker, and
 [`docker-compose.yml`](../docker-compose.yml) sets them for the development stack. Variables are
-read when they are used, not validated at start-up: a missing secret shows as a refused request
+read when they are used, not validated at start-up (`AUTH_TRUSTED_ORIGINS` is the exception, see below): a missing secret shows as a refused request
 (`500`, `503`), never as a silent default.
 
 The development values below are public. Replace every secret before the stack leaves one
@@ -19,7 +19,7 @@ machine ([Deployment](deployment.md#before-the-stack-leaves-one-machine)); gener
 | `NGINX_PROXY_SECRET` | Yes | Shared secret nginx adds to every request as `X-Proxy-Secret`. Agent endpoints refuse a request without it, and refuse everything while it is unset. Set the same value on the application and the proxy. | `dev_nginx_secret_change_in_production` |
 | `CRON_SECRET` | For scheduled jobs | Bearer token of the `/api/cron/*` routes. Unset, every job call is refused. | `dev_cron_secret` |
 | `PLATFORM_OPERATOR_USER_IDS` | To create tenants | Comma-separated `auth_user.id` values allowed to call `POST /api/admin/tenants`. Unset, nobody can. | unset |
-| `AUTH_TRUSTED_ORIGINS` | In production | Comma-separated `http(s)://host[:port]` origins better-auth trusts on a request that carries a session cookie, for example `https://console.example.com`. Unset, it is `http://localhost:3000,http://localhost:8443`; set, it replaces those two (localhost is not added back by this variable). better-auth also trusts the origin of its own base URL and `BETTER_AUTH_TRUSTED_ORIGINS`, see [security model](security-model.md#console-users). An entry that is not an origin, or a value with no entry (`,`), stops the server at start. | unset |
+| `AUTH_TRUSTED_ORIGINS` | In production | Comma-separated `http(s)://host[:port]` origins better-auth trusts on a request that carries a session cookie, for example `https://console.example.com`. Unset, it is `http://localhost:3000,http://localhost:8443`; set, it replaces those two (localhost is not added back by this variable). better-auth also trusts the origin of its own base URL and `BETTER_AUTH_TRUSTED_ORIGINS`, see [security model](security-model.md#console-users). An entry that is not an origin, or a value with no entry (`,`), makes the server log `Invalid configuration, exiting` and exit with status 1 at start (Next 14.2 would otherwise keep listening and answer every request with 500). | unset |
 | `NEXTAUTH_URL` | No | Public base URL of the console. Used only as the fallback for `NOTIFY_CONSOLE_URL`. | `http://localhost:3000` |
 | `NODE_ENV` | No | `development` logs every Prisma query; the production image sets `production`. | `development` |
 | `PORT`, `HOSTNAME` | No | Where the Next.js server listens (default `3000` and, in the images, `0.0.0.0`). The middleware calls the session route on `127.0.0.1:$PORT`. | `3000`, `0.0.0.0` |

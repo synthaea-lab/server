@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 /**
  * Next compiles `instrumentation.ts` for the Node AND the Edge runtime. The Edge one cannot
@@ -36,5 +36,32 @@ describe("the production image", () => {
     expect(dockerfile).toMatch(/^ENV NEXT_MANUAL_SIG_HANDLE true$/m);
     expect(runner).toContain('"server.js"');
     expect(dockerfile.indexOf("NEXT_MANUAL_SIG_HANDLE")).toBeLessThan(dockerfile.lastIndexOf("CMD"));
+  });
+});
+
+describe("assertStartupConfig", () => {
+  const exit = (code: number): never => {
+    throw new Error(`exit ${code}`);
+  };
+
+  it("exits with status 1 and logs the cause on a bad AUTH_TRUSTED_ORIGINS", async () => {
+    const { assertStartupConfig } = await import("../../instrumentation-node");
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(() => assertStartupConfig({ AUTH_TRUSTED_ORIGINS: "console.example.com" }, exit)).toThrow("exit 1");
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("AUTH_TRUSTED_ORIGINS"));
+    log.mockRestore();
+  }, 30_000);
+
+  it("does nothing on a valid or unset value", async () => {
+    const { assertStartupConfig } = await import("../../instrumentation-node");
+    expect(() => assertStartupConfig({ AUTH_TRUSTED_ORIGINS: "https://console.example.com" }, exit)).not.toThrow();
+    expect(() => assertStartupConfig({}, exit)).not.toThrow();
+  });
+});
+
+describe("instrumentation.ts boot order", () => {
+  it("validates the configuration before the decoy side effects start", () => {
+    expect(entry.indexOf("assertStartupConfig(")).toBeGreaterThan(-1);
+    expect(entry.indexOf("assertStartupConfig(")).toBeLessThan(entry.indexOf("startDecoyWatch()"));
   });
 });
