@@ -130,12 +130,12 @@ interface Candidate {
   startMs: number | null;
 }
 
-function existingCandidate(open: ActiveCase): Candidate {
-  const times = open.detections.map((d) => d.timestamp.getTime());
+function existingCandidate(activeCase: ActiveCase): Candidate {
+  const times = activeCase.detections.map((d) => d.timestamp.getTime());
   return {
-    ref: { caseId: open.id },
-    severity: open.severity,
-    evidence: [...open.detections],
+    ref: { caseId: activeCase.id },
+    severity: activeCase.severity,
+    evidence: [...activeCase.detections],
     startMs: times.length === 0 ? null : times.reduce((a, b) => Math.min(a, b)),
   };
 }
