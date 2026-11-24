@@ -15,7 +15,8 @@
 #                            stack, see "Create the first account and tenant" in README-SETUP.md.
 # Optional:
 #   SERVER_URL           default http://localhost:3000 (it is also the Origin sent to better-auth,
-#                        so it must be one of `trustedOrigins` in lib/auth.ts)
+#                        so it must be one of `trustedOrigins` in lib/auth.ts: http://localhost:3000
+#                        or http://localhost:8443; http://127.0.0.1:3000 is refused at sign-in)
 #   CRON_SECRET          default dev_cron_secret (.env.example)
 #   NGINX_PROXY_SECRET   default dev_nginx_secret_change_in_production (.env.example)
 #   E2E_TENANT_ID        the tenant to act in; default: the user's first organization
@@ -69,10 +70,16 @@ session_curl() {
     curl -sS -b "$COOKIES" -c "$COOKIES" -H "Origin: $SERVER_URL" -H "Content-Type: application/json" "$@"
 }
 
+# A `header = "..."` line for `curl --config -`: the secret reaches curl on stdin, so it never
+# appears in curl's argv (`ps`), like the sign-in body below. `\` and `"` are escaped as the
+# config format requires. Not `-H @<(...)`: Git Bash's native curl cannot open /dev/fd paths.
+secret_header() {
+    printf 'header = "%s"\n' "$(printf '%s: %s' "$1" "$2" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+}
+
 # What nginx sets on an agent request after verifying its client certificate (nginx.conf).
 agent_curl() {
-    curl -sS \
-        -H "X-Proxy-Secret: $NGINX_PROXY_SECRET" \
+    secret_header X-Proxy-Secret "$NGINX_PROXY_SECRET" | curl -sS --config - \
         -H "X-Client-Cert-Verified: SUCCESS" \
         -H "X-Client-Cert-Subject: CN=$ENROLLMENT_ID,O=synthaea" \
         "$@"
@@ -120,7 +127,12 @@ fi
 TENANT_ID="${E2E_TENANT_ID:-}"
 if [ -z "$TENANT_ID" ]; then
     ORGS=$(session_curl "$SERVER_URL/api/auth/organization/list") || fail "Listing tenants: curl failed"
-    TENANT_ID=$(grep -o '"id":"[^"]*"' <<< "$ORGS" | head -1 | cut -d'"' -f4 || true)
+    TENANT_ID=$(node -e '
+        let s = "";
+        process.stdin.on("data", (d) => (s += d)).on("end", () => {
+            const orgs = JSON.parse(s);
+            if (Array.isArray(orgs) && orgs.length > 0) process.stdout.write(String(orgs[0].id));
+        });' <<< "$ORGS") || fail "Listing tenants: unexpected response: $ORGS"
 fi
 [ -n "$TENANT_ID" ] || fail "$E2E_EMAIL belongs to no tenant"
 ACTIVE_RESPONSE=$(session_curl -X POST "$SERVER_URL/api/auth/organization/set-active" \
@@ -180,8 +192,8 @@ expect_response "Heartbeat accepted" '"status":"ok"' "$HEARTBEAT_RESPONSE"
 echo ""
 
 print_info "Running the silent-agent job (an agent is silent after 5 minutes without a heartbeat)"
-CRON_RESPONSE=$(curl -sS "$SERVER_URL/api/cron/detect-silent-agents" \
-    -H "Authorization: Bearer $CRON_SECRET") || fail "Silent-agent job: curl failed"
+CRON_RESPONSE=$(secret_header Authorization "Bearer $CRON_SECRET" \
+    | curl -sS --config - "$SERVER_URL/api/cron/detect-silent-agents") || fail "Silent-agent job: curl failed"
 expect_response "Silent-agent job ran" '"silentAgents"' "$CRON_RESPONSE"
 echo ""
 
