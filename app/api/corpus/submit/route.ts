@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
     if (result.outcome === "notCollecting") {
       return NextResponse.json(
         {
-          error: "Corpus version is finalized",
+          error: result.status === "finalizing" ? "Corpus version is being finalized" : "Corpus version is finalized",
           message: `Version ${corpusVersion} is no longer accepting samples (status: ${result.status})`,
         },
         { status: 409 }
