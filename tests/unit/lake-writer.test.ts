@@ -228,7 +228,9 @@ function fakePrisma(batches: Batch[], tenants: { id: string; lakeRetentionDays: 
       try {
         return await fn(tx);
       } catch (e) {
-        state.batches = before;
+        // The stamp is written outside the transaction (its own connection), so a rollback does not undo it.
+        const stamps = new Map(state.batches.map((b) => [b.id, b.archivedAt]));
+        state.batches = before.map((b) => ({ ...b, archivedAt: stamps.has(b.id) ? stamps.get(b.id)! : b.archivedAt }));
         throw e;
       }
     }),
@@ -236,10 +238,15 @@ function fakePrisma(batches: Batch[], tenants: { id: string; lakeRetentionDays: 
   return { prisma, state, tx };
 }
 
-class MemoryStore implements Pick<LakeStore, "put"> {
+class MemoryStore implements Pick<LakeStore, "put" | "list"> {
   files = new Map<string, Uint8Array>();
   async put(key: string, body: Uint8Array) {
     this.files.set(key, body);
+  }
+  async list(prefix: string) {
+    return Array.from(this.files.entries())
+      .filter(([k]) => k.startsWith(prefix))
+      .map(([key, body]) => ({ key, size: body.byteLength }));
   }
 }
 
@@ -482,5 +489,51 @@ describe("drainLakeQueue", () => {
     await drainLakeQueue(prisma, new MemoryStore(), { maxBatches: 7 });
     const call = tx.$queryRaw.mock.calls[0] as unknown as [TemplateStringsArray, ...unknown[]];
     expect(call.slice(1)).toContain(7);
+  });
+
+  describe("the stamp of a retried flush", () => {
+    const T = (min: number) => new Date(RECEIVED.getTime() + min * 60_000);
+    const queued = () => fakePrisma([{ id: "b1", tenantId: "t1", agentId: "a1", receivedAt: RECEIVED, events: [exec()] }], [{ id: "t1", lakeRetentionDays: 90 }]);
+    const stampsInFile = async (store: MemoryStore) => {
+      const rows = await Promise.all(Array.from(store.files.values()).map(readParquet));
+      return rows.flat().map((r) => (r.archived_at as Date).getTime());
+    };
+
+    it("takes a fresh stamp at the retry after an outage where put and list both fail", async () => {
+      const { prisma, state } = queued();
+      const down = { put: async () => Promise.reject(new Error("store down")), list: async () => Promise.reject(new Error("store down")) };
+      await expect(drainLakeQueue(prisma, down, { now: T(1) })).rejects.toThrow("store down");
+      expect(state.batches[0].archivedAt).toEqual(T(1)); // committed before the put
+      const store = new MemoryStore();
+      await drainLakeQueue(prisma, store, { now: T(60) });
+      expect(await stampsInFile(store)).toEqual([T(60).getTime()]);
+    });
+
+    it("takes a fresh stamp at the retry when queued batches carry a stamp but no file exists (process killed after the stamp commit)", async () => {
+      const { prisma } = fakePrisma([{ id: "b1", tenantId: "t1", agentId: "a1", receivedAt: RECEIVED, events: [exec()], flushId: "f1", archivedAt: T(1) }], [{ id: "t1", lakeRetentionDays: 90 }]);
+      const store = new MemoryStore();
+      await drainLakeQueue(prisma, store, { now: T(60) });
+      expect(await stampsInFile(store)).toEqual([T(60).getTime()]);
+    });
+
+    it("keeps the stamp when a file of the flush exists", async () => {
+      const { prisma, state } = queued();
+      const store = new MemoryStore();
+      const writesThenFails = { put: async (k: string, b: Uint8Array) => { await store.put(k, b); throw new Error("lost after put"); }, list: (p: string) => store.list(p) };
+      await expect(drainLakeQueue(prisma, writesThenFails, { now: T(1) })).rejects.toThrow("lost after put");
+      expect(state.batches[0].archivedAt).toEqual(T(1));
+      await drainLakeQueue(prisma, store, { now: T(60) });
+      expect(await stampsInFile(store)).toEqual([T(1).getTime()]);
+    });
+
+    it("fails the retry and leaves the flush queued, stamp untouched, while the store cannot list", async () => {
+      const { prisma, state } = fakePrisma([{ id: "b1", tenantId: "t1", agentId: "a1", receivedAt: RECEIVED, events: [exec()], flushId: "f1", archivedAt: T(1) }], [{ id: "t1", lakeRetentionDays: 90 }]);
+      const put = vi.fn();
+      const unhealthy = { put, list: async () => Promise.reject(new Error("list down")) };
+      await expect(drainLakeQueue(prisma, unhealthy, { now: T(60) })).rejects.toThrow("list down");
+      expect(put).not.toHaveBeenCalled();
+      expect(state.batches).toHaveLength(1);
+      expect(state.batches[0].archivedAt).toEqual(T(1));
+    });
   });
 });

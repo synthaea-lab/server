@@ -165,9 +165,12 @@ export type EventHuntOutcome = { status: "ok"; result: EventHuntResult } | { sta
  * a day ahead). Not covered: a flush that began before a run's start and put its file after that run read
  * the archive is counted by neither run. The stamp is taken per flush, under its lock just before its first
  * put, and kept across retries, so that window is one flush's write (seconds) and a retried flush is not
- * counted twice. A crash after a first put but before the transaction ended keeps the stamp too (a flush
- * that wrote nothing before failing is stamped again). `newMatchCount` is a floor when `truncated`: the
- * rows cut are the oldest stamps, which are the late-backlog events this count exists for.
+ * counted twice. A retry lists the flush's keys before it puts: a file exists, the stamp stays (a crash
+ * after a first put); none exists, the flush takes a fresh stamp (an outage, a kill before the first put);
+ * the store cannot list, the retry fails and the flush stays queued. A put that timed out but lands later
+ * can still be counted twice (accepted). `newMatchCount` is a floor when `truncated` (the rows cut are the
+ * oldest stamps, which are the late-backlog events this count exists for) and when `incomplete` (the
+ * oldest days were not read, where late-archived events with old agent stamps sit).
  */
 export async function runEventHuntWithinLimit(
   prisma: PrismaClient,

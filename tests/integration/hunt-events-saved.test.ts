@@ -184,6 +184,34 @@ describe("saved hunts over the event archive: runs", () => {
     expect(await runHunt(prisma, row, "schedule", minutes(5), { archive: ready() })).toMatchObject({ matchCount: 1, newMatchCount: 1 });
   });
 
+  it("counts the backlog of a store outage as new when the store comes back (put and list both fail)", async () => {
+    const tenant = await createTestTenant();
+    const agent = await createTestAgent(tenant.id);
+    const row = await prisma.hunt.findUniqueOrThrow({ where: { id: (await create(tenant.id)).id } });
+    await runHunt(prisma, row, "schedule", minutes(-5), { archive: ready() });
+    await enqueueStamped(tenant.id, agent.id, minutes(-1), minutes(-0.5));
+    const down = { put: async () => { throw new Error("store down"); }, list: async () => { throw new Error("store down"); } };
+    await expect(drainLakeQueue(prisma, down, { now: minutes(1) })).rejects.toThrow("store down");
+    const counts: number[] = [];
+    for (const at of [2, 30]) counts.push((await runHunt(prisma, row, "schedule", minutes(at), { archive: ready() })).newMatchCount);
+    await drainLakeQueue(prisma, store, { now: minutes(60) });
+    for (const at of [65, 70]) counts.push((await runHunt(prisma, row, "schedule", minutes(at), { archive: ready() })).newMatchCount);
+    expect(counts).toEqual([0, 0, 1, 0]);
+  });
+
+  it("counts a flush whose process died after the stamp commit as new (queued batches carry a stale stamp, no file)", async () => {
+    const tenant = await createTestTenant();
+    const agent = await createTestAgent(tenant.id);
+    const row = await prisma.hunt.findUniqueOrThrow({ where: { id: (await create(tenant.id)).id } });
+    await runHunt(prisma, row, "schedule", minutes(-5), { archive: ready() });
+    await enqueueStamped(tenant.id, agent.id, minutes(-1), minutes(-0.5));
+    // A first attempt that stamped, then died: the batches hold a flush id and a stamp, the store holds nothing.
+    await prisma.lakeBatch.updateMany({ data: { flushId: "00000000-0000-4000-8000-000000000001", archivedAt: minutes(1) } });
+    await runHunt(prisma, row, "schedule", minutes(30), { archive: ready() });
+    await drainLakeQueue(prisma, store, { now: minutes(60) });
+    expect(await runHunt(prisma, row, "schedule", minutes(65), { archive: ready() })).toMatchObject({ matchCount: 1, newMatchCount: 1 });
+  });
+
   it("reads a file written before the archive kept a write time, counting its events by their own stamp", async () => {
     const tenant = await createTestTenant();
     const agent = await createTestAgent(tenant.id);

@@ -140,7 +140,9 @@ export default async function HuntPage({ params }: { params: { id: string } }) {
                     <td className="px-4 py-2 text-right text-gray-900" title={run.incomplete ? "The oldest days were not read" : undefined}>
                       {state === "ok" ? `${run.matchCount}${run.truncated ? "+" : ""}${run.incomplete ? " *" : ""}` : "–"}
                     </td>
-                    <td className="px-4 py-2 text-right text-gray-900">{state === "ok" ? `${run.newMatchCount}${run.truncated ? "+" : ""}` : "–"}</td>
+                    <td className="px-4 py-2 text-right text-gray-900" title={run.incomplete ? "The oldest days were not read, so late-archived events there are not counted" : undefined}>
+                      {state === "ok" ? `${run.newMatchCount}${run.truncated ? "+" : ""}${run.incomplete ? " *" : ""}` : "–"}
+                    </td>
                   </tr>
                 );
               })}
