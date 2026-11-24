@@ -77,9 +77,17 @@ secret_header() {
     printf 'header = "%s"\n' "$(printf '%s: %s' "$1" "$2" | sed 's/\\/\\\\/g; s/"/\\"/g')"
 }
 
+# curl with one secret header on stdin, so the secret stays out of curl's argv. curl's stdin is
+# taken by the header, so a caller cannot also send its body with `-d @-`.
+curl_with_secret_header() {   # $1 = header name, $2 = its value, then curl's arguments
+    local name=$1 value=$2
+    shift 2
+    secret_header "$name" "$value" | curl -sS --config - "$@"
+}
+
 # What nginx sets on an agent request after verifying its client certificate (nginx.conf).
 agent_curl() {
-    secret_header X-Proxy-Secret "$NGINX_PROXY_SECRET" | curl -sS --config - \
+    curl_with_secret_header X-Proxy-Secret "$NGINX_PROXY_SECRET" \
         -H "X-Client-Cert-Verified: SUCCESS" \
         -H "X-Client-Cert-Subject: CN=$ENROLLMENT_ID,O=synthaea" \
         "$@"
@@ -101,7 +109,8 @@ echo ""
 print_info "Checking server health..."
 if ! curl -sf "$SERVER_URL/api/health" > /dev/null; then
     print_error "Server not responding at $SERVER_URL"
-    print_info "Start server with: docker compose up"
+    # `docker compose up` alone publishes only nginx (8443), not the server's 3000.
+    print_info "Start the server with \`npm run dev\`, or the stack with port 3000 published (README-SETUP.md, \"Create the first account and tenant\")"
     exit 1
 fi
 print_success "Server is healthy"
@@ -192,8 +201,8 @@ expect_response "Heartbeat accepted" '"status":"ok"' "$HEARTBEAT_RESPONSE"
 echo ""
 
 print_info "Running the silent-agent job (an agent is silent after 5 minutes without a heartbeat)"
-CRON_RESPONSE=$(secret_header Authorization "Bearer $CRON_SECRET" \
-    | curl -sS --config - "$SERVER_URL/api/cron/detect-silent-agents") || fail "Silent-agent job: curl failed"
+CRON_RESPONSE=$(curl_with_secret_header Authorization "Bearer $CRON_SECRET" \
+    "$SERVER_URL/api/cron/detect-silent-agents") || fail "Silent-agent job: curl failed"
 expect_response "Silent-agent job ran" '"silentAgents"' "$CRON_RESPONSE"
 echo ""
 
