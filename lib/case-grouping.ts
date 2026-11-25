@@ -96,8 +96,8 @@ export interface UngroupedDetection {
   meta: unknown;
 }
 
-/** An open case and the evidence it already holds. */
-export interface OpenCase {
+/** An active case (`open` or `investigating`) and the evidence it already holds. */
+export interface ActiveCase {
   id: string;
   severity: string;
   /** `technique` is the grouping tag (`groupingTechnique`), not the stored column. */
@@ -115,9 +115,9 @@ export interface NewCase {
 export interface GroupingPlan {
   /** In the order the pass opened them. */
   newCases: NewCase[];
-  /** Existing open case id -> ids of the detections it receives. */
+  /** Existing active case id -> ids of the detections it receives. */
   assignments: Map<string, string[]>;
-  /** Existing open case id -> its raised severity. */
+  /** Existing active case id -> its raised severity. */
   severityBumps: Map<string, string>;
 }
 
@@ -125,17 +125,17 @@ interface Candidate {
   /** The case the plan writes to: one this pass opens, or an existing one by id. */
   ref: { newCase: NewCase } | { caseId: string };
   severity: string;
-  evidence: OpenCase["detections"];
+  evidence: ActiveCase["detections"];
   /** Earliest evidence timestamp, the anchor of the time window; null while it has none. */
   startMs: number | null;
 }
 
-function existingCandidate(open: OpenCase): Candidate {
-  const times = open.detections.map((d) => d.timestamp.getTime());
+function existingCandidate(activeCase: ActiveCase): Candidate {
+  const times = activeCase.detections.map((d) => d.timestamp.getTime());
   return {
-    ref: { caseId: open.id },
-    severity: open.severity,
-    evidence: [...open.detections],
+    ref: { caseId: activeCase.id },
+    severity: activeCase.severity,
+    evidence: [...activeCase.detections],
     startMs: times.length === 0 ? null : times.reduce((a, b) => Math.min(a, b)),
   };
 }
@@ -195,7 +195,7 @@ function attach(plan: GroupingPlan, target: Candidate, detection: UngroupedDetec
 }
 
 /**
- * Decides, without touching the database, where each ungrouped detection goes: the first open
+ * Decides, without touching the database, where each ungrouped detection goes: the first active
  * case it matches (existing cases first, then the ones this pass opened, in order), or a new case.
  * Detections are taken in the given order (oldest first), and each one becomes evidence later
  * ones can match. A case's severity is raised to the worst evidence it receives, never lowered;
@@ -203,11 +203,11 @@ function attach(plan: GroupingPlan, target: Candidate, detection: UngroupedDetec
  */
 export function planGrouping(
   ungrouped: readonly UngroupedDetection[],
-  openCases: readonly OpenCase[],
+  activeCases: readonly ActiveCase[],
   hostnameByAgentId: ReadonlyMap<string, string | null>
 ): GroupingPlan {
   const plan: GroupingPlan = { newCases: [], assignments: new Map(), severityBumps: new Map() };
-  const candidates = openCases.map(existingCandidate);
+  const candidates = activeCases.map(existingCandidate);
 
   for (const detection of ungrouped) {
     const technique = groupingTechnique(detection.technique, listedTechniques(detection.meta));

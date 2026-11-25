@@ -2,7 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import { describe, expect, it, vi } from "vitest";
 import {
   LAKE_BACKLOG_CASE_TITLE,
-  hasLiveLakeBacklogCase,
+  hasActiveLakeBacklogCase,
   lakeBacklogBreach,
   lakeBacklogCaseDescription,
   lakeBacklogLimitsFromEnv,
@@ -40,7 +40,7 @@ describe("lakeBacklogCaseDescription", () => {
   });
 });
 
-describe("hasLiveLakeBacklogCase", () => {
+describe("hasActiveLakeBacklogCase", () => {
   const lookup = (found: boolean) => {
     const findFirst = vi.fn().mockResolvedValue(found ? { id: "c1" } : null);
     return { findFirst, db: { case: { findFirst } } as unknown as Pick<PrismaClient, "case"> };
@@ -48,7 +48,7 @@ describe("hasLiveLakeBacklogCase", () => {
 
   it("looks for the open and investigating cases of that tenant and title only", async () => {
     const { findFirst, db } = lookup(true);
-    expect(await hasLiveLakeBacklogCase(db, "t1")).toBe(true);
+    expect(await hasActiveLakeBacklogCase(db, "t1")).toBe(true);
     expect(findFirst).toHaveBeenCalledWith({
       where: { tenantId: "t1", status: { in: ["open", "investigating"] }, title: LAKE_BACKLOG_CASE_TITLE },
       select: { id: true },
@@ -56,7 +56,7 @@ describe("hasLiveLakeBacklogCase", () => {
   });
 
   it("is false when there is none", async () => {
-    expect(await hasLiveLakeBacklogCase(lookup(false).db, "t1")).toBe(false);
+    expect(await hasActiveLakeBacklogCase(lookup(false).db, "t1")).toBe(false);
   });
 });
 
