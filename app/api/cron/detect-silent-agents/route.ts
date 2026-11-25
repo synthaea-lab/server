@@ -3,7 +3,7 @@ import { verifyCronRequest } from "@/lib/cron-auth";
 import { prisma } from "@/lib/prisma";
 import {
   caseNamesAgent,
-  findOpenCasesNamingAgents,
+  findActiveCasesNamingAgents,
   silentCaseDescription,
   silentCaseTitle,
 } from "@/lib/silent-agent-case";
@@ -34,12 +34,12 @@ export async function GET(req: NextRequest) {
 
     let casesCreated = 0;
 
-    // Open one case per silent agent that no open case names yet. A case opened in this run
+    // Open one case per silent agent that no active (open or investigating) case names yet. A case opened in this run
     // joins the list, so the agents after it are checked against it as well.
     for (const [tenantId, agents] of Array.from(byTenant.entries())) {
-      const open = await findOpenCasesNamingAgents(prisma, tenantId, agents);
+      const active = await findActiveCasesNamingAgents(prisma, tenantId, agents);
       for (const agent of agents) {
-        if (open.some((c) => caseNamesAgent(c, agent))) continue;
+        if (active.some((c) => caseNamesAgent(c, agent))) continue;
         const created = await prisma.case.create({
           data: {
             tenantId,
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
           },
           select: { id: true, title: true, description: true },
         });
-        open.push(created);
+        active.push(created);
         casesCreated++;
       }
     }

@@ -8,7 +8,7 @@ import { parseLimit } from "@/lib/http/query";
  * Admin endpoint: List corpus versions for tenant
  *
  * Query params:
- * - status: Filter by status (collecting, finalized, archived)
+ * - status: Filter by status (collecting, finalizing, finalized, archived)
  * - limit: Number of results (default: 50, max: 1000)
  *
  * Response: { versions: CorpusVersion[] }

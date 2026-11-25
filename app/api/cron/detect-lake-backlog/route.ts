@@ -5,7 +5,7 @@ import { lakeEnabled } from "@/lib/lake-store";
 import { loadLakeBacklogs } from "@/lib/lake-backlog";
 import {
   LAKE_BACKLOG_CASE_TITLE,
-  hasLiveLakeBacklogCase,
+  hasActiveLakeBacklogCase,
   lakeBacklogBreach,
   lakeBacklogCaseDescription,
   lakeBacklogLimitsFromEnv,
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
       breached.push(tenantId);
       // Check then create is not atomic: two overlapping runs could open two cases. At a 5-minute
       // schedule that is rare and costs one duplicate case, so no lock is taken.
-      if (await hasLiveLakeBacklogCase(prisma, tenantId)) continue;
+      if (await hasActiveLakeBacklogCase(prisma, tenantId)) continue;
       await prisma.case.create({
         data: {
           tenantId,

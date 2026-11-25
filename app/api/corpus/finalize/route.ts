@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenantAdmin } from "@/lib/admin-auth";
 import { z } from "zod";
-import fs from "fs/promises";
-import path from "path";
-import crypto from "crypto";
+import {
+  claimForFinalize,
+  exportCorpusVersion,
+  FinalizeClaimLostError,
+  reopenAfterFailedFinalize,
+} from "@/lib/corpus";
 
 const FinalizeSchema = z.object({
   version: z.number().int().min(1),
@@ -37,98 +40,58 @@ export async function POST(req: NextRequest) {
 
     const { version: versionNumber } = validation.data;
 
-    // Find corpus version
-    const version = await prisma.corpusVersion.findUnique({
-      where: {
-        tenantId_version: {
-          tenantId,
-          version: versionNumber,
-        },
-      },
-    });
-
-    if (!version) {
-      return NextResponse.json(
-        { error: "Corpus version not found" },
-        { status: 404 }
-      );
+    // Claim the version before exporting (see `claimForFinalize`): the export then reads every
+    // sample that `sampleCount` counts. A claim left by a process that died is taken over.
+    const claim = await claimForFinalize(prisma, tenantId, versionNumber);
+    if (claim.outcome === "notFound") {
+      return NextResponse.json({ error: "Corpus version not found" }, { status: 404 });
     }
-
-    if (version.status !== "collecting") {
+    if (claim.outcome === "notCollecting") {
       return NextResponse.json(
         {
-          error: "Corpus already finalized",
-          message: `Version ${versionNumber} is already in status: ${version.status}`,
+          error:
+            claim.status === "finalizing" ? "Corpus finalize in progress" : "Corpus already finalized",
+          message: `Version ${versionNumber} is already in status: ${claim.status}`,
         },
         { status: 409 }
       );
     }
 
-    // Fetch all samples for this version
-    const samples = await prisma.corpusSample.findMany({
-      where: {
-        corpusVersionId: version.id,
-      },
-      orderBy: { timestamp: "asc" },
-      select: {
-        timestamp: true,
-        eventType: true,
-        event: true,
-        agentId: true,
-      },
-    });
+    let exported;
+    try {
+      exported = await exportCorpusVersion(prisma, {
+        tenantId,
+        versionId: claim.versionId,
+        versionNumber,
+        claimedAt: claim.claimedAt,
+      });
+    } catch (error) {
+      if (error instanceof FinalizeClaimLostError) {
+        return NextResponse.json(
+          {
+            error: "Corpus finalize in progress",
+            message: `Version ${versionNumber} was taken over by another finalize`,
+          },
+          { status: 409 }
+        );
+      }
+      // Nothing was finalized: reopen the version so submits and a retry work again.
+      await reopenAfterFailedFinalize(prisma, claim.versionId, claim.claimedAt);
+      throw error;
+    }
 
-    // Export to JSONL
-    const exportDir = path.join(
-      process.cwd(),
-      "storage",
-      "corpus",
-      tenantId
-    );
-    await fs.mkdir(exportDir, { recursive: true });
-
-    const exportFilename = `corpus-v${versionNumber}.jsonl`;
-    const exportPath = path.join(exportDir, exportFilename);
-
-    // Write JSONL (one JSON object per line)
-    const jsonlLines = samples.map((sample) =>
-      JSON.stringify({
-        timestamp: sample.timestamp.toISOString(),
-        event_type: sample.eventType,
-        event: sample.event,
-        agent_id: sample.agentId,
-      })
-    );
-    await fs.writeFile(exportPath, jsonlLines.join("\n") + "\n", "utf-8");
-
-    // Compute SHA-256 of export file
-    const fileBuffer = await fs.readFile(exportPath);
-    const sha256 = crypto.createHash("sha256").update(fileBuffer).digest("hex");
-
-    // Update corpus version with export details
-    const exportUrl = `/storage/corpus/${tenantId}/${exportFilename}`;
-    const finalizedVersion = await prisma.corpusVersion.update({
-      where: { id: version.id },
-      data: {
-        status: "finalized",
-        collectionEnd: new Date(),
-        exportUrl,
-        exportSha256: sha256,
-      },
-    });
-
-    // Audit log
+    // Audit log. A failure here does not reopen the version: it is already finalized.
     await prisma.auditLog.create({
       data: {
         tenantId,
         userId,
         action: "corpus.version.finalize",
-        resource: `corpus_versions/${version.id}`,
+        resource: `corpus_versions/${claim.versionId}`,
         details: {
           version: versionNumber,
-          sampleCount: finalizedVersion.sampleCount,
-          exportUrl,
-          exportSha256: sha256,
+          sampleCount: exported.sampleCount,
+          exportUrl: exported.exportUrl,
+          exportSha256: exported.exportSha256,
         },
       },
     });
@@ -136,9 +99,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       status: "finalized",
       version: versionNumber,
-      sampleCount: finalizedVersion.sampleCount,
-      exportUrl,
-      exportSha256: sha256,
+      sampleCount: exported.sampleCount,
+      exportUrl: exported.exportUrl,
+      exportSha256: exported.exportSha256,
     });
   } catch (error) {
     console.error("Corpus finalize error:", error);

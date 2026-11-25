@@ -1,11 +1,12 @@
-import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createHash, randomUUID } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { NextRequest } from "next/server";
 import { cleanDatabase, createTestAgent, createTestTenant, prisma } from "../helpers/db";
 import { createMtlsHeaders, createTenantHeaders } from "../helpers/http";
+import { FINALIZE_STALE_AFTER_MS } from "@/lib/corpus";
 import { POST as submit } from "@/app/api/corpus/submit/route";
 import { POST as finalize } from "@/app/api/corpus/finalize/route";
 import { GET as listVersions } from "@/app/api/corpus/versions/route";
@@ -61,6 +62,18 @@ const corpusVersion = (tenantId: string, version: number, status = "collecting",
   prisma.corpusVersion.create({
     data: { tenantId, version, status, sampleCount, collectionStart: new Date() },
   });
+
+/** Waits until a backend is blocked on a row lock, so a test knows the request reached it. */
+async function waitForLockWait() {
+  for (let i = 0; i < 200; i++) {
+    const rows = await prisma.$queryRaw<{ n: bigint }[]>`
+      SELECT count(*) AS n FROM pg_stat_activity
+      WHERE datname = current_database() AND wait_event_type = 'Lock'`;
+    if (Number(rows[0].n) > 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  throw new Error("no backend ever waited on a lock");
+}
 
 afterAll(async () => {
   await cleanDatabase();
@@ -195,6 +208,55 @@ describe("POST /api/corpus/submit", () => {
     expect(new Set(versions.map((v) => v.tenantId))).toEqual(new Set([t1.id, t2.id]));
   });
 
+  it("lets concurrent first submits of one version all succeed on a single row (SV-019)", async () => {
+    // The find-or-create was a `findUnique` then a `create`: two submits that both saw no
+    // version both created it, and the loser failed with P2002 (a 500).
+    const tenant = await createTestTenant();
+    const ids = Array.from({ length: 8 }, (_, i) => `e-race-${i}`);
+    for (const id of ids) await createTestAgent(tenant.id, id);
+
+    const responses = await Promise.all(
+      ids.map((id, i) =>
+        submitReq(id, { corpusVersion: 7, samples: [sample(`2026-01-01T00:00:0${i}Z`)] })
+      )
+    );
+
+    expect(responses.map((r) => r.status)).toEqual(ids.map(() => 200));
+    expect(await prisma.corpusVersion.count()).toBe(1);
+    expect((await prisma.corpusVersion.findFirstOrThrow()).sampleCount).toBe(8);
+    expect(await prisma.corpusSample.count()).toBe(8);
+  });
+
+  it("refuses a submit that waits on a finalize, rolls its samples back and leaves the count alone (SV-019)", async () => {
+    // The status was read, then checked, then the samples were inserted, as separate
+    // statements: a finalize that committed in between left samples in a finalized version.
+    // Here a transaction holds the version row with a lock-only `FOR NO KEY UPDATE` (what the
+    // guarded update of a finalize or another submit takes). It must be lock-only: a real
+    // `UPDATE` makes the `INSERT ... ON CONFLICT` of the submit's first statement wait for
+    // the commit, the submit then reads `finalizing` at its pre-check and never inserts a
+    // sample, so the rollback is not reached. A lock-only holder is compatible with the
+    // sample insert (`FOR KEY SHARE`) and blocks only the guarded count update: the submit
+    // inserts, parks there, the holder sets `finalizing` and commits, the submit's `WHERE`
+    // matches nothing and it must roll its samples back.
+    const tenant = await createTestTenant();
+    await createTestAgent(tenant.id, "e-toctou");
+    const version = await corpusVersion(tenant.id, 1);
+
+    let submitted: Promise<Response> | undefined;
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM corpus_versions WHERE id = ${version.id} FOR NO KEY UPDATE`;
+      submitted = submitReq("e-toctou", { corpusVersion: 1, samples: [sample("2026-01-01T00:00:00Z")] });
+      await waitForLockWait();
+      // Same transaction as the lock: this write does not wait on it.
+      await tx.$executeRaw`UPDATE corpus_versions SET status = 'finalizing' WHERE id = ${version.id}`;
+    });
+
+    const res = await submitted!;
+    expect(res.status).toBe(409);
+    expect(await prisma.corpusSample.count()).toBe(0);
+    expect((await prisma.corpusVersion.findUniqueOrThrow({ where: { id: version.id } })).sampleCount).toBe(0);
+  });
+
   it("refuses samples for a version that is no longer collecting with 409", async () => {
     const tenant = await createTestTenant();
     await createTestAgent(tenant.id, "e-late");
@@ -224,6 +286,7 @@ describe("POST /api/corpus/finalize", () => {
   });
 
   afterEach(async () => {
+    vi.restoreAllMocks();
     process.chdir(originalCwd);
     await rm(workDir, { recursive: true, force: true });
   });
@@ -321,6 +384,104 @@ describe("POST /api/corpus/finalize", () => {
       action: "corpus.version.finalize",
       resource: `corpus_versions/${version.id}`,
       details: { version: 1, sampleCount: 2, exportUrl, exportSha256: sha256 },
+    });
+  });
+
+  it("exports a batch whose submit is committing when the finalize starts (SV-019)", async () => {
+    // Finalize used to export, then set `finalized`, with no lock: a batch committed in
+    // between was counted in `sampleCount` but missing from the JSONL and its hash. Now the
+    // finalize claims the row first, so it waits for the committing batch and exports it.
+    const { tenantId, userId } = await tenantWithMember("admin");
+    const agent = await createTestAgent(tenantId, "e-fin-race");
+    const version = await corpusVersion(tenantId, 1);
+
+    let finalized: Promise<Response> | undefined;
+    await prisma.$transaction(async (tx) => {
+      await tx.corpusSample.create({
+        data: { tenantId, corpusVersionId: version.id, agentId: agent.id, timestamp: new Date("2026-01-01T00:00:00Z"), eventType: "exec", event: { pid: 1 } },
+      });
+      await tx.corpusVersion.update({ where: { id: version.id }, data: { sampleCount: { increment: 1 } } });
+      finalized = finalize(finalizeReq(tenantId, userId, { version: 1 }));
+      await waitForLockWait();
+    });
+
+    const res = await finalized!;
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.sampleCount).toBe(1);
+    const written = await readFile(path.join(workDir, "storage", "corpus", tenantId, "corpus-v1.jsonl"), "utf-8");
+    expect(written.split("\n").filter(Boolean)).toHaveLength(1);
+    expect(body.exportSha256).toBe(createHash("sha256").update(written).digest("hex"));
+  });
+
+  it("refuses a submit while the version is being finalized", async () => {
+    const tenant = await createTestTenant();
+    await createTestAgent(tenant.id, "e-finalizing");
+    await corpusVersion(tenant.id, 1, "finalizing");
+
+    const res = await submitReq("e-finalizing", { corpusVersion: 1, samples: [sample("2026-01-01T00:00:00Z")] });
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("Corpus version is being finalized");
+    expect(await prisma.corpusSample.count()).toBe(0);
+  });
+
+  it("reopens the version when the export fails, and a retry finalizes it", async () => {
+    const { tenantId, userId } = await tenantWithMember("admin");
+    const version = await corpusVersion(tenantId, 1);
+    // A regular file where the export directory must go makes `mkdir` throw.
+    await mkdir(path.join(workDir, "storage", "corpus"), { recursive: true });
+    await writeFile(path.join(workDir, "storage", "corpus", tenantId), "not a directory");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const failed = await finalize(finalizeReq(tenantId, userId, { version: 1 }));
+
+    expect(failed.status).toBe(500);
+    expect(await prisma.corpusVersion.findUniqueOrThrow({ where: { id: version.id } })).toMatchObject({
+      status: "collecting",
+      finalizingSince: null,
+    });
+
+    await rm(path.join(workDir, "storage", "corpus", tenantId));
+    const retried = await finalize(finalizeReq(tenantId, userId, { version: 1 }));
+    expect(retried.status).toBe(200);
+    expect((await prisma.corpusVersion.findUniqueOrThrow({ where: { id: version.id } })).status).toBe("finalized");
+  });
+
+  it("refuses a finalize while another one holds a recent claim, with 409", async () => {
+    const { tenantId, userId } = await tenantWithMember("admin");
+    const version = await corpusVersion(tenantId, 1, "finalizing");
+    await prisma.corpusVersion.update({ where: { id: version.id }, data: { finalizingSince: new Date() } });
+
+    const res = await finalize(finalizeReq(tenantId, userId, { version: 1 }));
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({
+      error: "Corpus finalize in progress",
+      message: "Version 1 is already in status: finalizing",
+    });
+    expect((await prisma.corpusVersion.findUniqueOrThrow({ where: { id: version.id } })).status).toBe("finalizing");
+  });
+
+  it("takes over a stale finalizing claim, so a crashed finalize is not stuck for good", async () => {
+    const { tenantId, userId } = await tenantWithMember("admin");
+    const agent = await createTestAgent(tenantId, "e-stale");
+    const version = await corpusVersion(tenantId, 1, "finalizing", 1);
+    await prisma.corpusVersion.update({
+      where: { id: version.id },
+      data: { finalizingSince: new Date(Date.now() - FINALIZE_STALE_AFTER_MS - 60_000) },
+    });
+    await prisma.corpusSample.create({
+      data: { tenantId, corpusVersionId: version.id, agentId: agent.id, timestamp: new Date("2026-01-01T00:00:00Z"), eventType: "exec", event: { pid: 1 } },
+    });
+
+    const res = await finalize(finalizeReq(tenantId, userId, { version: 1 }));
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).sampleCount).toBe(1);
+    expect(await prisma.corpusVersion.findUniqueOrThrow({ where: { id: version.id } })).toMatchObject({
+      status: "finalized",
+      finalizingSince: null,
     });
   });
 

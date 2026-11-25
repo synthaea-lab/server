@@ -5,6 +5,7 @@ import {
   LOSS_WINDOW_MS,
   SILENCE_THRESHOLD_MS,
   fleetStatus,
+  etwSheddingSummary,
   iocFeedSummary,
   nextLossObservedAt,
   sensorsOf,
@@ -76,6 +77,36 @@ describe("parseHeartbeatBody", () => {
     expect([old?.ioc_own_skipped, old?.ioc_sibling_skipped]).toEqual([0, 0]);
   });
 
+  it("reads the alerts not written to the audit trail, and counts them as zero for an agent that predates them (#91)", () => {
+    expect(parseHeartbeatBody({ beacon: beacon({ alerts_dropped: 8 }) })?.alerts_dropped).toBe(8);
+    expect(parseHeartbeatBody({ beacon: beacon() })?.alerts_dropped).toBe(0);
+  });
+
+  it("reads what the ETW caches shed, and counts it as zero for an agent that predates it (#91)", () => {
+    const withShedding = parseHeartbeatBody({
+      beacon: beacon({
+        etw_pid_cache_evicted: 40,
+        etw_silo_evicted: 2,
+        etw_marks_dropped: 1,
+        etw_quarantine_unremembered: 7,
+      }),
+    });
+    expect([
+      withShedding?.etw_pid_cache_evicted,
+      withShedding?.etw_silo_evicted,
+      withShedding?.etw_marks_dropped,
+      withShedding?.etw_quarantine_unremembered,
+    ]).toEqual([40, 2, 1, 7]);
+
+    const old = parseHeartbeatBody({ beacon: beacon() });
+    expect([
+      old?.etw_pid_cache_evicted,
+      old?.etw_silo_evicted,
+      old?.etw_marks_dropped,
+      old?.etw_quarantine_unremembered,
+    ]).toEqual([0, 0, 0, 0]);
+  });
+
   it("returns null for a body with no usable beacon instead of throwing", () => {
     for (const body of [null, "x", 7, {}, { beacon: null }, { beacon: { timestamp_ns: 1 } }]) {
       expect(parseHeartbeatBody(body)).toBeNull();
@@ -90,7 +121,7 @@ describe("parseHeartbeatBody", () => {
     expect(parseHeartbeatBody({ beacon: beacon({ rarity_applied: -1 }) })).toBeNull();
     expect(parseHeartbeatBody({ beacon: beacon({ rarity_withheld: 0.5 }) })).toBeNull();
     expect(parseHeartbeatBody({ beacon: beacon({ rarity_unapplied: "3" }) })).toBeNull();
-    for (const field of ["watchdog_restarts", "tamper_events", "parent_image_evicted_live", "parent_image_evicted_dead", "ioc_indicators", "ioc_findings", "ioc_cooled_down", "ioc_own_skipped", "ioc_sibling_skipped"]) {
+    for (const field of ["watchdog_restarts", "tamper_events", "parent_image_evicted_live", "parent_image_evicted_dead", "ioc_indicators", "ioc_findings", "ioc_cooled_down", "ioc_own_skipped", "ioc_sibling_skipped", "alerts_dropped", "etw_pid_cache_evicted", "etw_silo_evicted", "etw_marks_dropped", "etw_quarantine_unremembered"]) {
       expect(parseHeartbeatBody({ beacon: beacon({ [field]: -1 }) }), `${field} -1`).toBeNull();
       expect(parseHeartbeatBody({ beacon: beacon({ [field]: 0.5 }) }), `${field} 0.5`).toBeNull();
       expect(parseHeartbeatBody({ beacon: beacon({ [field]: "3" }) }), `${field} "3"`).toBeNull();
@@ -152,12 +183,14 @@ describe("nextLossObservedAt (#83)", () => {
     timestamp_ns: T0 + 30_000_000_000,
     spool_dropped: 0,
     enrich_dropped: 0,
+    etw_marks_dropped: 0,
     ...over,
   });
   const stored = (over: Record<string, unknown> = {}) => ({
     beaconAt: new Date(T0 / 1_000_000),
     spoolDropped: BigInt(0),
     enrichDropped: BigInt(0),
+    etwMarksDropped: BigInt(0),
     lossObservedAt: null as Date | null,
     ...over,
   });
@@ -171,7 +204,7 @@ describe("nextLossObservedAt (#83)", () => {
     });
   });
 
-  it("stamps the receive time when either loss counter rose", () => {
+  it("stamps the receive time when the spool or enrichment loss counter rose", () => {
     expect(nextLossObservedAt(stored(), beacon({ spool_dropped: 1 }), received).lossObservedAt).toEqual(received);
     expect(nextLossObservedAt(stored(), beacon({ enrich_dropped: 3 }), received).lossObservedAt).toEqual(received);
     // One counter falling does not cancel the other rising.
@@ -179,6 +212,16 @@ describe("nextLossObservedAt (#83)", () => {
       nextLossObservedAt(stored({ spoolDropped: BigInt(9) }), beacon({ spool_dropped: 0, enrich_dropped: 2 }), received)
         .lossObservedAt
     ).toEqual(received);
+  });
+
+  it("stamps the receive time when lost quarantine marks rose, and not when they fell on a restart", () => {
+    expect(nextLossObservedAt(stored(), beacon({ etw_marks_dropped: 1 }), received).lossObservedAt).toEqual(received);
+    const restarted = nextLossObservedAt(
+      stored({ etwMarksDropped: BigInt(12), lossObservedAt: earlier }),
+      beacon({ etw_marks_dropped: 0 }),
+      received
+    );
+    expect(restarted.lossObservedAt).toEqual(earlier);
   });
 
   it("keeps what it had when nothing rose, including after an agent restart reset the counters", () => {
@@ -228,6 +271,26 @@ describe("iocFeedSummary", () => {
   });
 });
 
+describe("etwSheddingSummary", () => {
+  const shed = (marksDropped: number, pidCacheEvicted: number, siloEvicted: number, quarantineUnremembered: number) => ({
+    marksDropped,
+    pidCacheEvicted,
+    siloEvicted,
+    quarantineUnremembered,
+  });
+
+  it("says none when nothing was shed, as on every host that is not Windows", () => {
+    expect(etwSheddingSummary(shed(0, 0, 0, 0))).toBe("none");
+  });
+
+  it("names only the counters that moved, the lost quarantine marks first", () => {
+    expect(etwSheddingSummary(shed(0, 40, 0, 0))).toBe("40 pid-cache evictions");
+    expect(etwSheddingSummary(shed(1, 40, 2, 7))).toBe(
+      "1 quarantine marks lost, 40 pid-cache evictions, 2 silo evictions, 7 quarantines not deduplicated"
+    );
+  });
+});
+
 describe("loadFleet and the IOC counters", () => {
   const row = (health: Record<string, unknown> | null) => ({
     id: "a1",
@@ -254,6 +317,11 @@ describe("loadFleet and the IOC counters", () => {
     iocIndicators: BigInt(0),
     iocFindings: BigInt(0),
     iocCooledDown: BigInt(0),
+    alertsDropped: BigInt(0),
+    etwPidCacheEvicted: BigInt(0),
+    etwSiloEvicted: BigInt(0),
+    etwMarksDropped: BigInt(0),
+    etwQuarantineUnremembered: BigInt(0),
     sensors: [],
     ...over,
   });

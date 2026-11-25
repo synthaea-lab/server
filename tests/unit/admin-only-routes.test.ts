@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { mkdirSync, rmSync } from "fs";
+import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 
 // Route logic runs against a mocked Prisma client, so these need no database.
 const db = vi.hoisted(() => ({
   agent: { findFirst: vi.fn(), update: vi.fn() },
-  corpusVersion: { findUnique: vi.fn(), update: vi.fn() },
+  corpusVersion: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   corpusSample: { findMany: vi.fn() },
   auditLog: { create: vi.fn() },
   member: { findFirst: vi.fn() },
@@ -43,6 +43,8 @@ beforeEach(() => {
   db.agent.update.mockImplementation(async ({ where, data }) => ({ id: where.id, ...data }));
   db.corpusVersion.findUnique.mockResolvedValue({ id: "cv1", version: 1, status: "collecting" });
   db.corpusVersion.update.mockImplementation(async ({ data }) => ({ id: "cv1", sampleCount: 0, ...data }));
+  db.corpusVersion.findUniqueOrThrow.mockResolvedValue({ sampleCount: 0 });
+  db.corpusVersion.updateMany.mockResolvedValue({ count: 1 });
   db.corpusSample.findMany.mockResolvedValue([]);
   db.auditLog.create.mockResolvedValue({});
   db.member.findFirst.mockResolvedValue({ role: "owner" });
@@ -92,10 +94,38 @@ describe("agents/[agentId]/ring and corpus/finalize require the admin role (#837
   it("finalizes the corpus for an owner and audits it under the caller's id", async () => {
     const res = await finalizeCorpus(finalizeReq());
     expect(res.status).toBe(200);
-    expect(db.corpusVersion.update).toHaveBeenCalledOnce();
+    // The claim, then the finalized write.
+    expect(db.corpusVersion.updateMany).toHaveBeenCalledTimes(2);
     expect(db.auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ tenantId: "t1", userId: "u1" }) })
     );
+  });
+
+  it("reopens the version when the export fails, and does not when the audit log fails", async () => {
+    // A regular file where the export directory must go makes `mkdir` throw.
+    mkdirSync(join(sandbox, "storage"), { recursive: true });
+    writeFileSync(join(sandbox, "storage", "corpus"), "not a directory");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect((await finalizeCorpus(finalizeReq())).status).toBe(500);
+    const reopen = db.corpusVersion.updateMany.mock.calls.at(-1)![0];
+    expect(reopen.where).toMatchObject({ id: "cv1", status: "finalizing" });
+    expect(reopen.data).toMatchObject({ status: "collecting", finalizingSince: null });
+
+    rmSync(join(sandbox, "storage"), { recursive: true, force: true });
+    db.corpusVersion.updateMany.mockClear();
+    db.auditLog.create.mockRejectedValue(new Error("audit down"));
+    expect((await finalizeCorpus(finalizeReq())).status).toBe(500);
+    // claim + finalized write, no reopen: the version is already finalized.
+    expect(db.corpusVersion.updateMany).toHaveBeenCalledTimes(2);
+  });
+
+  it("answers 409 when the claim was taken over during the export, and leaves the new owner's claim alone", async () => {
+    db.corpusVersion.updateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 });
+    const res = await finalizeCorpus(finalizeReq());
+    expect(res.status).toBe(409);
+    expect(db.corpusVersion.updateMany).toHaveBeenCalledTimes(2);
+    expect(db.auditLog.create).not.toHaveBeenCalled();
   });
 
   it("looks the membership up by the caller's own tenant and user id", async () => {

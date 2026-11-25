@@ -67,6 +67,28 @@ describe("GET /api/cron/detect-silent-agents", () => {
     expect(await prisma.case.count({ where: { tenantId: tenant.id } })).toBe(2);
   });
 
+  it("opens no new case while an analyst is investigating the previous one (#83)", async () => {
+    const tenant = await createTestTenant();
+    await createTestAgent(tenant.id, "enroll-named", { hostname: "web-01", lastSeen: HOUR_AGO() });
+
+    await GET(cronRequest());
+    await prisma.case.updateMany({ where: { tenantId: tenant.id }, data: { status: "investigating" } });
+    for (let run = 0; run < 2; run++) {
+      expect((await (await GET(cronRequest())).json()).casesCreated).toBe(0);
+    }
+    expect(await prisma.case.count({ where: { tenantId: tenant.id } })).toBe(1);
+  });
+
+  it("opens a new case once the previous one is closed as a false positive", async () => {
+    const tenant = await createTestTenant();
+    await createTestAgent(tenant.id, "enroll-named", { hostname: "web-01", lastSeen: HOUR_AGO() });
+
+    await GET(cronRequest());
+    await prisma.case.updateMany({ where: { tenantId: tenant.id }, data: { status: "false_positive" } });
+
+    expect((await (await GET(cronRequest())).json()).casesCreated).toBe(1);
+  });
+
   it("keeps each tenant's cases apart", async () => {
     const a = await createTestTenant();
     const b = await createTestTenant();

@@ -1,16 +1,17 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
-import { cleanDatabase, createTestTenant, prisma } from "../helpers/db";
+import { cleanDatabase, createTestCase, createTestTenant, prisma } from "../helpers/db";
 import { createTenantHeaders } from "../helpers/http";
 import { GET as ringHealth } from "@/app/api/rings/[ring]/health/route";
 import { GET as checkRingHealth } from "@/app/api/cron/check-ring-health/route";
 
 // Characterization tests for the two places that compute ring health today: the
 // per-ring console endpoint and the auto-halt cron. They pin the metrics (5-minute
-// silence threshold, 24-hour detection window, severity "low" counted as a false
-// positive), the health thresholds and the halt side effects, so SV-007 can move both
-// onto one `lib/ring-health.ts` without changing an answer.
+// silence threshold, 24-hour detection window, a detection in a case or fleet case an
+// analyst marked `false_positive` counted as a false positive whatever its severity: #78),
+// the health thresholds and the halt side effects, so SV-007 can move both onto one
+// `lib/ring-health.ts` without changing an answer.
 
 const MINUTE = 60 * 1000;
 const fresh = () => new Date();
@@ -25,18 +26,37 @@ async function agents(tenantId: string, ring: string, count: number, lastSeen: (
   return ids;
 }
 
-async function detections(tenantId: string, agentId: string, count: number, severity: string, timestamp = new Date()) {
+type DetectionPlacement = Partial<{ timestamp: Date; caseId: string; fleetCaseId: string }>;
+
+async function detections(tenantId: string, agentId: string, count: number, severity: string, placement: DetectionPlacement = {}) {
   await prisma.detection.createMany({
     data: Array.from({ length: count }, () => ({
       tenantId,
       agentId,
       severity,
-      timestamp,
+      timestamp: placement.timestamp ?? new Date(),
+      caseId: placement.caseId,
+      fleetCaseId: placement.fleetCaseId,
       technique: "T1059.001",
       event: { test: "data" },
       meta: { test: "meta" },
     })),
   });
+}
+
+/** Creates `count` detections of `agentId` grouped into a case an analyst marked `false_positive`. */
+async function analystMarkedFalsePositives(tenantId: string, agentId: string, count: number, severity: string) {
+  const verdict = await createTestCase(tenantId, { status: "false_positive" });
+  await detections(tenantId, agentId, count, severity, { caseId: verdict.id });
+}
+
+/** A fleet case an analyst marked `false_positive`; returns its id. */
+async function falsePositiveFleetCase(tenantId: string) {
+  const now = new Date();
+  const fleetCase = await prisma.fleetCase.create({
+    data: { tenantId, severity: "critical", status: "false_positive", agentCount: 2, firstAt: now, lastAt: now },
+  });
+  return fleetCase.id;
 }
 
 const release = (tenantId: string, ring: string, releaseVersion: number, status: string) =>
@@ -106,18 +126,23 @@ describe("GET /api/rings/[ring]/health", () => {
     });
   });
 
-  it("counts the ring's own agents and their last-24h detections, low severity as false positives", async () => {
+  it("counts the ring's own agents and their last-24h detections, analyst-marked ones as false positives (#78)", async () => {
     const tenant = await createTestTenant();
     const other = await createTestTenant();
     const [a1] = await agents(tenant.id, "canary_1", 2, fresh);
     await agents(tenant.id, "canary_1", 1, silent);
     const [prodAgent] = await agents(tenant.id, "prod", 1, fresh);
     const [otherAgent] = await agents(other.id, "canary_1", 1, silent);
-    await detections(tenant.id, a1, 2, "high");
-    await detections(tenant.id, a1, 1, "low");
-    await detections(tenant.id, a1, 1, "low", new Date(Date.now() - 25 * 60 * MINUTE)); // outside the window
-    await detections(tenant.id, prodAgent, 4, "low"); // another ring
-    await detections(other.id, otherAgent, 4, "low"); // another tenant
+    const openCase = await createTestCase(tenant.id, { status: "open" });
+    await detections(tenant.id, a1, 2, "low", { caseId: openCase.id }); // correct, whatever their severity
+    await detections(tenant.id, a1, 1, "low"); // not triaged yet
+    await analystMarkedFalsePositives(tenant.id, a1, 1, "high");
+    await detections(tenant.id, a1, 1, "critical", { fleetCaseId: await falsePositiveFleetCase(tenant.id) });
+    const staleVerdict = await createTestCase(tenant.id, { status: "false_positive" });
+    const outsideWindow = new Date(Date.now() - 25 * 60 * MINUTE);
+    await detections(tenant.id, a1, 1, "high", { timestamp: outsideWindow, caseId: staleVerdict.id });
+    await analystMarkedFalsePositives(tenant.id, prodAgent, 4, "high"); // another ring
+    await analystMarkedFalsePositives(other.id, otherAgent, 4, "high"); // another tenant
     await release(tenant.id, "canary_1", 1, "active");
     await release(tenant.id, "canary_1", 2, "rolled_back");
 
@@ -130,8 +155,8 @@ describe("GET /api/rings/[ring]/health", () => {
       silentAgents: 1,
       silentRate: 0.33,
       contentRelease: { releaseVersion: 2, status: "rolled_back", releasedAt: "2026-01-01T00:00:00.000Z" },
-      recentDetections: 3,
-      falsePositives: 1,
+      recentDetections: 5,
+      falsePositives: 2,
       healthStatus: "unhealthy",
     });
   });
@@ -209,7 +234,7 @@ describe("GET /api/cron/check-ring-health", () => {
       "Content release v2 for ring canary_0 was automatically halted due to health regression.\n\n" +
         "Metrics:\n" +
         "- Silent rate: 50.00% (threshold: 5%)\n" +
-        "- FP rate: 0 (baseline: 0, max increase: 2×)\n" +
+        "- Analyst-marked false positives: 0 (baseline: 0, max increase: 2×; detections not yet triaged are not counted)\n" +
         "- Detection rate: 0 (baseline: 0, max drop: 20%)\n\n" +
         `Reason: ${reason}`
     );
@@ -224,8 +249,8 @@ describe("GET /api/cron/check-ring-health", () => {
         releaseVersion: 2,
         reason,
         metrics: {
-          canary: { totalAgents: 2, healthyAgents: 1, silentAgents: 1, silentRate: 0.5, detectionCount: 0, fpCount: 0 },
-          baseline: { totalAgents: 1, healthyAgents: 1, silentAgents: 0, silentRate: 0, detectionCount: 0, fpCount: 0 },
+          canary: { totalAgents: 2, healthyAgents: 1, silentAgents: 1, silentRate: 0.5, detectionCount: 0, falsePositiveCount: 0 },
+          baseline: { totalAgents: 1, healthyAgents: 1, silentAgents: 0, silentRate: 0, detectionCount: 0, falsePositiveCount: 0 },
         },
       },
     });
@@ -267,9 +292,10 @@ describe("GET /api/cron/check-ring-health", () => {
   });
 
   it.each([
-    // [label, prod: [high, low], canary: [high, low], reason or null]
+    // [label, prod: [correct, analyst-marked FP], canary: [correct, analyst-marked FP], reason or null]
     ["more than 10 FPs against a baseline of none", [0, 0], [0, 11], "FP rate spike: 11 FPs (baseline: 0)"],
     ["10 FPs against a baseline of none", [0, 0], [0, 10], null],
+    ["11 correct low-severity detections against a baseline of none (#78)", [0, 0], [11, 0], null],
     ["more than twice the baseline FPs", [0, 1], [0, 3], "FP rate increased 3.00× (3 vs baseline 1)"],
     ["exactly twice the baseline FPs", [0, 1], [0, 2], null],
     ["a detection drop above 20%", [10, 0], [7, 0], "Detection rate dropped 30% (7 vs baseline 10)"],
@@ -278,10 +304,10 @@ describe("GET /api/cron/check-ring-health", () => {
     const tenant = await createTestTenant();
     const [prodAgent] = await agents(tenant.id, "prod", 1, fresh);
     const [canaryAgent] = await agents(tenant.id, "canary_2", 1, fresh);
-    await detections(tenant.id, prodAgent, prod[0], "high");
-    await detections(tenant.id, prodAgent, prod[1], "low");
-    await detections(tenant.id, canaryAgent, canary[0], "high");
-    await detections(tenant.id, canaryAgent, canary[1], "low");
+    await detections(tenant.id, prodAgent, prod[0], "low");
+    await analystMarkedFalsePositives(tenant.id, prodAgent, prod[1], "high");
+    await detections(tenant.id, canaryAgent, canary[0], "low");
+    await analystMarkedFalsePositives(tenant.id, canaryAgent, canary[1], "high");
     await release(tenant.id, "canary_2", 1, "active");
 
     const body = await (await runCron()).json();

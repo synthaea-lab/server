@@ -89,10 +89,28 @@ on `main`:
 
 ## The acceptance script
 
-`tests/e2e/run-acceptance-tests.sh` drives a running server with `curl` (`SERVER_URL`, default
-`http://localhost:3000`, and `CRON_SECRET`). It predates the session requirement on enrollment and
-the proxy secret on agent routes, so against the current server it needs a session cookie and the
-proxy headers it does not send. It is not run in CI.
+`tests/e2e/run-acceptance-tests.sh` (`npm run test:e2e`) drives a running Next.js server with
+`curl`. It is not run in CI. It reaches the server the way production traffic does:
+
+- **As an admin.** It signs in with `E2E_EMAIL`/`E2E_PASSWORD` and makes a tenant its session's
+  active organization (`E2E_TENANT_ID`, or the user's first one), because enrollment needs an
+  `owner` or `admin` of the tenant.
+- **As the agent, through the proxy.** Agent calls carry `X-Proxy-Secret` (`NGINX_PROXY_SECRET`)
+  with the mTLS headers nginx would set, because agent routes trust those headers only with the
+  secret. So `SERVER_URL` (default `http://localhost:3000`) is the Next.js server, not nginx.
+
+`CRON_SECRET` and `NGINX_PROXY_SECRET` default to the `.env.example` values; pass the server's
+own if it runs with others (`.env.test` uses `test_cron_secret`). The server must have
+`NGINX_PROXY_SECRET` set: `.env.test` sets none, and without it `verifyProxyAuth` refuses every
+agent call, whatever secret the script sends.
+
+A fresh stack has no tenant admin: create one as
+[Create the first account and tenant](../README-SETUP.md#create-the-first-account-and-tenant)
+describes, then pass that account's email and password.
+
+```sh
+E2E_EMAIL=admin@example.test E2E_PASSWORD=... npm run test:e2e
+```
 
 ## Writing a test
 

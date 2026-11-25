@@ -102,6 +102,17 @@ model AgentHealth {
   // second process on its executable; cumulative, zero for an agent that predates them.
   iocOwnSkipped          BigInt    @default(0) @map("ioc_own_skipped")
   iocSiblingSkipped      BigInt    @default(0) @map("ioc_sibling_skipped")
+  // Alerts the agent could not write to its audit trail, `alerts.ndjson` (#91); cumulative, zero
+  // for an agent that predates it. Shown, but does not make a host degraded: the alert still
+  // reached stderr and the CLI.
+  alertsDropped          BigInt    @default(0) @map("alerts_dropped")
+  // What the Windows ETW sensor's caches shed (#91): pid-cache and silo entries evicted at their
+  // cap, quarantine marks lost, quarantine paths reported without dedup. Cumulative, zero on
+  // other platforms and for an agent that predates them.
+  etwPidCacheEvicted     BigInt    @default(0) @map("etw_pid_cache_evicted")
+  etwSiloEvicted         BigInt    @default(0) @map("etw_silo_evicted")
+  etwMarksDropped        BigInt    @default(0) @map("etw_marks_dropped")
+  etwQuarantineUnremembered BigInt @default(0) @map("etw_quarantine_unremembered")
   sensors                Json // [{ name, pulse_count, silent }]
 
   agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -345,7 +356,8 @@ model CorpusVersion {
   sampleCount     Int       @map("sample_count") // Number of samples in this version
   exportUrl       String?   @map("export_url") // JSONL export URL (for ML pipeline)
   exportSha256    String?   @map("export_sha256") // SHA-256 of JSONL export
-  status          String    @default("collecting") // collecting, finalized, archived
+  status          String    @default("collecting") // collecting, finalizing, finalized, archived (see CORPUS_VERSION_STATUSES)
+  finalizingSince DateTime? @map("finalizing_since") // When finalize claimed it; a stale claim is taken over
   collectionStart DateTime  @map("collection_start") // Start of collection period
   collectionEnd   DateTime? @map("collection_end") // End of collection period (when finalized)
   createdAt       DateTime  @default(now()) @map("created_at")
@@ -485,6 +497,14 @@ model HuntRun {
   // Set when the run failed (e.g. the statement timeout); counts stay 0.
   error              String?
   trigger            String // manual | schedule
+  // Event-archive hunts (query.kind "events"): the newest matching events, typed columns only, at
+  // most HUNT_EVENT_SAMPLE_SIZE (what `EventRow` holds). Empty for a detection hunt, whose sample is
+  // `sampleDetectionIds`.
+  sampleEvents       Json      @default("[]") @map("sample_events")
+  // The archive had more matching events than one run reads (matchCount is then a floor), or more
+  // matching files than one run lists (the oldest days were not read).
+  truncated          Boolean   @default(false)
+  incomplete         Boolean   @default(false)
 
   hunt   Hunt   @relation(fields: [huntId], references: [id], onDelete: Cascade)
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -741,6 +761,13 @@ model LakeBatch {
   // that has one belongs to that flush for good, so a retry after a crash writes the same files
   // under the same names and cannot write an event twice. Null: not yet assigned.
   flushId    String?  @map("flush_id")
+  // The archive time of the flush, taken once under the flush's lock just before its first file is put
+  // and kept across retries, so a retry rewrites the files with the stamp the first attempt gave them
+  // and a run does not count the same events as new twice. A retry lists the flush's keys before it
+  // puts: none exists, so the old stamp is stale (outage, crash, kill) and the flush takes a fresh one;
+  // some exists, so the stamp stays; the store cannot list, so the retry fails and the flush stays
+  // queued. Null: no attempt has stamped it yet.
+  archivedAt DateTime? @map("archived_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
