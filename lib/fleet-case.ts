@@ -3,7 +3,7 @@ import { outranks } from "@/lib/severity";
 
 /**
  * The cross-host join of #62's first box, as pure decision logic over detections already read
- * (the Prisma calls are in `app/api/cron/join-fleet-cases/route.ts`, as `lib/case-grouping.ts`
+ * (the Prisma calls are in `lib/fleet-case-store.ts`, as `lib/case-grouping.ts`
  * does for #50).
  *
  * Two detections of different agents belong to one fleet case when they carry the same entity:
