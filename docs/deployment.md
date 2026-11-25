@@ -128,6 +128,7 @@ stack:
 - Replace every secret with a random value: `BETTER_AUTH_SECRET`, `CRON_SECRET`,
   `NGINX_PROXY_SECRET` (the same value on `server` and `proxy`) and the PostgreSQL password in
   both `POSTGRES_PASSWORD` and `DATABASE_URL`.
+- Set `AUTH_TRUSTED_ORIGINS` to the console's public origin (for example `https://console.example.com`). Unset, the console trusts only `localhost`, and a sign-in from the real address is refused. In `docker-compose.yml` the `server` service lists its variables in an explicit `environment:` map: add `AUTH_TRUSTED_ORIGINS` there, because setting it in `.env` alone does not reach the container.
 - Never publish the application port. The proxy secret is what keeps a client from talking to the
   application directly with forged certificate headers, and it only works if the application is
   unreachable except through the proxy.

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyCronRequest } from "@/lib/cron-auth";
 import { prisma } from "@/lib/prisma";
 import { lakeStoreFromEnv } from "@/lib/lake-env";
-import { positiveIntFromEnv } from "@/lib/env-int";
+import { positiveIntFromEnv } from "@/lib/env";
 import { DEFAULT_MAX_BATCHES, drainLakeQueue } from "@/lib/lake-writer";
 
 /**
