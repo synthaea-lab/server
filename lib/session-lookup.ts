@@ -9,6 +9,8 @@
  * Fails closed: a missing cookie, a refusal, a network error, a timeout or an answer of an
  * unexpected shape is "no session", which the middleware turns into a redirect to `/login`.
  */
+import { listenPort } from "@/lib/env";
+
 
 /** What the middleware needs from a session. */
 export type LookedUpSession = {
@@ -24,7 +26,7 @@ const LOOKUP_TIMEOUT_MS = 5_000;
  * `X-Forwarded-Host`: those are the client's, and the request carries the session cookie.
  */
 function selfOrigin(): string {
-  return `http://127.0.0.1:${process.env.PORT ?? "3000"}`;
+  return `http://127.0.0.1:${listenPort(process.env)}`;
 }
 
 export async function lookupSession(headers: Headers): Promise<LookedUpSession | null> {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authTrustedOrigins, positiveIntFromEnv, positiveNumberFromEnv } from "@/lib/env";
+import { authTrustedOrigins, cronSecret, listenPort, platformOperatorIds, positiveIntFromEnv, positiveNumberFromEnv, proxySecret } from "@/lib/env";
 
 describe("positiveNumberFromEnv", () => {
   it("returns the fallback when the variable is unset or empty", () => {
@@ -66,6 +66,50 @@ describe("authTrustedOrigins", () => {
   it("throws on a non-blank value with no entry, which would otherwise trust no origin silently", () => {
     for (const bad of [",", " , ", ",,"]) {
       expect(() => authTrustedOrigins({ AUTH_TRUSTED_ORIGINS: bad })).toThrow(/lists no origin/);
+    }
+  });
+});
+
+describe("proxySecret and cronSecret", () => {
+  it("return the value as set, untrimmed", () => {
+    expect(proxySecret({ NGINX_PROXY_SECRET: " s3 " })).toBe(" s3 ");
+    expect(cronSecret({ CRON_SECRET: "c1" })).toBe("c1");
+  });
+
+  it("are undefined when unset or empty: the callers refuse, never match", () => {
+    for (const env of [{}, { NGINX_PROXY_SECRET: "", CRON_SECRET: "" }]) {
+      expect(proxySecret(env)).toBeUndefined();
+      expect(cronSecret(env)).toBeUndefined();
+    }
+  });
+});
+
+describe("platformOperatorIds", () => {
+  it("is empty when unset, empty or only separators: nobody is allowed", () => {
+    expect(platformOperatorIds({})).toEqual([]);
+    expect(platformOperatorIds({ PLATFORM_OPERATOR_USER_IDS: "" })).toEqual([]);
+    expect(platformOperatorIds({ PLATFORM_OPERATOR_USER_IDS: " , ," })).toEqual([]);
+  });
+
+  it("lists the ids, trimmed, empty entries dropped", () => {
+    expect(platformOperatorIds({ PLATFORM_OPERATOR_USER_IDS: "u1, u2 ,,u3" })).toEqual(["u1", "u2", "u3"]);
+  });
+});
+
+describe("listenPort", () => {
+  it("is 3000 when unset or empty", () => {
+    expect(listenPort({})).toBe(3000);
+    expect(listenPort({ PORT: "" })).toBe(3000);
+  });
+
+  it("is the port when it is an integer from 1 to 65535", () => {
+    expect(listenPort({ PORT: "8080" })).toBe(8080);
+    expect(listenPort({ PORT: "65535" })).toBe(65535);
+  });
+
+  it("throws on anything else, naming the value", () => {
+    for (const bad of ["0", "65536", "-1", "80.5", "http", " "]) {
+      expect(() => listenPort({ PORT: bad })).toThrow(`PORT must be an integer from 1 to 65535, got "${bad}"`);
     }
   });
 });

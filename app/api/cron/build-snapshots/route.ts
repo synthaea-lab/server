@@ -1,22 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyCronRequest } from "@/lib/cron-auth";
 import { prisma } from "@/lib/prisma";
-import { DEFAULT_SNAPSHOT_PARAMS, publishCommonSetSnapshot, type SnapshotParams } from "@/lib/snapshot-publish";
+import { publishCommonSetSnapshot, snapshotParamsFromEnv } from "@/lib/snapshot-publish";
 import { loadSnapshotSigner } from "@/lib/snapshot-manifest";
-import { positiveNumberFromEnv } from "@/lib/env";
-
-/** Provisional starting points, set from the environment until slice 6 calibrates them. */
-function paramsFromEnv(): SnapshotParams {
-  const d = DEFAULT_SNAPSHOT_PARAMS;
-  return {
-    minHosts: positiveNumberFromEnv(process.env, "SNAPSHOT_MIN_HOSTS", d.minHosts, { integer: true }),
-    minHostsCovered: positiveNumberFromEnv(process.env, "SNAPSHOT_MIN_HOSTS_COVERED", d.minHostsCovered, { integer: true }),
-    falsePositiveRate: positiveNumberFromEnv(process.env, "SNAPSHOT_FALSE_POSITIVE_RATE", d.falsePositiveRate, { integer: false }),
-    maxBytes: positiveNumberFromEnv(process.env, "SNAPSHOT_MAX_BYTES", d.maxBytes, { integer: true }),
-    maxEntries: positiveNumberFromEnv(process.env, "SNAPSHOT_MAX_ENTRIES", d.maxEntries, { integer: true }),
-    minEntryFraction: positiveNumberFromEnv(process.env, "SNAPSHOT_MIN_ENTRY_FRACTION", d.minEntryFraction, { integer: false }),
-  };
-}
 
 /**
  * GET /api/cron/build-snapshots
@@ -36,7 +22,7 @@ export async function GET(req: NextRequest) {
     if (!signer) {
       return NextResponse.json({ error: "Snapshot signing is not configured" }, { status: 503 });
     }
-    const params = paramsFromEnv();
+    const params = snapshotParamsFromEnv(process.env);
     const now = new Date();
 
     const tenants = await prisma.tenant.findMany({ select: { id: true } });

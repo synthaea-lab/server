@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect } from "vitest";
 import { NextRequest } from "next/server";
 import {
   AuthenticationError,
@@ -6,6 +6,7 @@ import {
   extractEnrollmentId,
   getTenantId,
   getUserId,
+  verifyProxyAuth,
 } from "@/lib/tenant";
 
 describe("tenant helpers", () => {
@@ -111,5 +112,35 @@ describe("tenant helpers", () => {
       expect(() => getTenantId(req)).toThrow(AuthenticationError);
       expect(() => getUserId(req)).toThrow(AuthenticationError);
     });
+  });
+});
+
+describe("verifyProxyAuth", () => {
+  const req = (secret?: string) =>
+    new NextRequest("http://localhost/x", { headers: secret === undefined ? {} : { "X-Proxy-Secret": secret } });
+  const saved = process.env.NGINX_PROXY_SECRET;
+  afterEach(() => {
+    if (saved === undefined) delete process.env.NGINX_PROXY_SECRET;
+    else process.env.NGINX_PROXY_SECRET = saved;
+  });
+
+  it("accepts the configured secret", () => {
+    process.env.NGINX_PROXY_SECRET = "s3";
+    expect(() => verifyProxyAuth(req("s3"))).not.toThrow();
+  });
+
+  it("refuses everything when the secret is unset or empty, an empty header included", () => {
+    for (const value of [undefined, ""]) {
+      if (value === undefined) delete process.env.NGINX_PROXY_SECRET;
+      else process.env.NGINX_PROXY_SECRET = value;
+      expect(() => verifyProxyAuth(req("s3"))).toThrow("NGINX_PROXY_SECRET not configured");
+      expect(() => verifyProxyAuth(req(""))).toThrow("NGINX_PROXY_SECRET not configured");
+    }
+  });
+
+  it("refuses a wrong or missing header", () => {
+    process.env.NGINX_PROXY_SECRET = "s3";
+    expect(() => verifyProxyAuth(req("nope"))).toThrow("Invalid proxy authentication");
+    expect(() => verifyProxyAuth(req())).toThrow("Invalid proxy authentication");
   });
 });

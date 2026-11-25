@@ -41,6 +41,16 @@ describe("verifyCronRequest", () => {
     expect((await verifyCronRequest(request("Bearer nope")))?.status).toBe(401);
   });
 
+  it("returns 500 when CRON_SECRET is empty, even for 'Bearer '", async () => {
+    const saved = process.env.CRON_SECRET;
+    process.env.CRON_SECRET = "";
+    try {
+      expect((await verifyCronRequest(request("Bearer ")))?.status).toBe(500);
+    } finally {
+      process.env.CRON_SECRET = saved;
+    }
+  });
+
   it("returns 500 and rejects 'Bearer undefined' when CRON_SECRET is unset", async () => {
     const saved = process.env.CRON_SECRET;
     delete process.env.CRON_SECRET;

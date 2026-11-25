@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
 import { buildCommonSetSnapshot, SnapshotTooLargeError } from "@/lib/common-set-snapshot";
+import { positiveNumberFromEnv, type Environment } from "@/lib/env";
 import { countReportingHosts, getCommonHashes } from "@/lib/prevalence";
 import {
   signSnapshotManifest,
@@ -35,6 +36,19 @@ export const DEFAULT_SNAPSHOT_PARAMS: SnapshotParams = {
   maxEntries: 500_000,
   minEntryFraction: 0.5,
 };
+
+/** The defaults, each overridden by its `SNAPSHOT_*` variable. A value that is set but wrong throws. */
+export function snapshotParamsFromEnv(env: Environment): SnapshotParams {
+  const d = DEFAULT_SNAPSHOT_PARAMS;
+  return {
+    minHosts: positiveNumberFromEnv(env, "SNAPSHOT_MIN_HOSTS", d.minHosts, { integer: true }),
+    minHostsCovered: positiveNumberFromEnv(env, "SNAPSHOT_MIN_HOSTS_COVERED", d.minHostsCovered, { integer: true }),
+    falsePositiveRate: positiveNumberFromEnv(env, "SNAPSHOT_FALSE_POSITIVE_RATE", d.falsePositiveRate),
+    maxBytes: positiveNumberFromEnv(env, "SNAPSHOT_MAX_BYTES", d.maxBytes, { integer: true }),
+    maxEntries: positiveNumberFromEnv(env, "SNAPSHOT_MAX_ENTRIES", d.maxEntries, { integer: true }),
+    minEntryFraction: positiveNumberFromEnv(env, "SNAPSHOT_MIN_ENTRY_FRACTION", d.minEntryFraction),
+  };
+}
 
 export type PublishOutcome =
   | { status: "published"; builtAt: number; hostsCovered: number; entryCount: number; size: number }

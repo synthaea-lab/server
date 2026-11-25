@@ -38,6 +38,17 @@ describe("lookupSession", () => {
     expect(url.hostname).toBe("127.0.0.1");
   });
 
+  it("uses PORT, and 3000 when it is unset", async () => {
+    fetchMock.mockResolvedValue(body({}, { id: "u1" }));
+    vi.stubEnv("PORT", "8080");
+    await lookupSession(new Headers({ cookie: "a=b" }));
+    vi.stubEnv("PORT", "");
+    await lookupSession(new Headers({ cookie: "a=b" }));
+
+    expect(new URL(String(fetchMock.mock.calls[0][0])).port).toBe("8080");
+    expect(new URL(String(fetchMock.mock.calls[1][0])).port).toBe("3000");
+  });
+
   it("sends nothing and finds nothing for a request without a cookie", async () => {
     expect(await lookupSession(new Headers())).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
