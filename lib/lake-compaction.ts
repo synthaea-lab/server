@@ -42,7 +42,6 @@ export const MAX_INPUT_BYTES = 128 * 1024 * 1024;
 export const MAX_PARTITIONS = 50;
 
 const PARTITION_KEY = /^tenant=([A-Za-z0-9_-]+)\/date=(\d{4}-\d{2}-\d{2})\/type=([a-z][a-z0-9_]{0,63})\/[A-Za-z0-9_.-]+\.parquet$/;
-const COLUMNS = ["agent_id", "ts", "comm", "path", "image_path", "daddr", "query", "sha256", "event"];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type CompactionResult = {
@@ -72,9 +71,12 @@ export function compactedKey(tenantId: string, day: string, type: string, inputK
 
 function toRow(r: Record<string, unknown>): LakeRow {
   const text = (v: unknown) => (typeof v === "string" ? v : null);
+  const at = r.ts instanceof Date ? r.ts : new Date(Number(r.ts));
   return {
     agentId: String(r.agent_id ?? ""),
-    at: r.ts instanceof Date ? r.ts : new Date(Number(r.ts)),
+    at,
+    // A file written before the column existed has none: the best it can say is the event's own stamp.
+    archivedAt: r.archived_at instanceof Date ? r.archived_at : at,
     comm: text(r.comm),
     path: text(r.path),
     imagePath: text(r.image_path),
@@ -88,7 +90,7 @@ function toRow(r: Record<string, unknown>): LakeRow {
 async function readRows(reader: LakeReader, key: string): Promise<LakeRow[]> {
   const bytes = await reader.get(key);
   const file = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-  return ((await parquetReadObjects({ file, columns: COLUMNS })) as Record<string, unknown>[]).map(toRow);
+  return ((await parquetReadObjects({ file })) as Record<string, unknown>[]).map(toRow);
 }
 
 /** Whether the compactor may touch this day: closed, and not about to be pruned. */

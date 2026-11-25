@@ -68,6 +68,12 @@ function column(value: unknown): string | null {
 export type LakeRow = {
   agentId: string;
   at: Date;
+  /**
+   * When the flush wrote the row to the archive (the server's clock, never the agent's): what a saved
+   * hunt's "new since the last run" counts on. Not the batch's `received_at`: a batch can wait in the
+   * queue, and a run that starts in between cannot see it.
+   */
+  archivedAt: Date;
   comm: string | null;
   path: string | null;
   imagePath: string | null;
@@ -159,13 +165,14 @@ export function eventSources(raw: string): string[] | null {
  * `source` is the event's text as received; without it (a queue row written before the text was
  * kept) the event is serialised from the parsed object, which rounds integers above 2^53.
  */
-export function lakeRow(agentId: string, event: Record<string, unknown>, receivedAt: Date, source?: string): LakeRow {
+export function lakeRow(agentId: string, event: Record<string, unknown>, receivedAt: Date, source?: string, archivedAt: Date = receivedAt): LakeRow {
   const meta = event.meta;
   const comm = typeof meta === "object" && meta !== null ? (meta as Record<string, unknown>).comm : undefined;
   const sha = typeof event.sha256 === "string" ? event.sha256.toLowerCase() : "";
   return {
     agentId,
     at: eventTime(event, receivedAt),
+    archivedAt,
     comm: column(comm),
     path: column(event.path),
     imagePath: column(event.image_path),
@@ -183,6 +190,7 @@ export function encodeParquet(rows: LakeRow[]): Uint8Array {
       columnData: [
         { name: "agent_id", data: data((r) => r.agentId), type: "STRING" },
         { name: "ts", data: data((r) => r.at), type: "TIMESTAMP" },
+        { name: "archived_at", data: data((r) => r.archivedAt), type: "TIMESTAMP" },
         { name: "comm", data: data((r) => r.comm), type: "STRING" },
         { name: "path", data: data((r) => r.path), type: "STRING" },
         { name: "image_path", data: data((r) => r.imagePath), type: "STRING" },
@@ -254,7 +262,7 @@ function emptyDrain(): DrainResult {
  */
 export async function drainLakeQueue(
   prisma: PrismaClient,
-  store: Pick<LakeStore, "put">,
+  store: LakeWriterStore,
   opts: { maxBatches?: number; now?: Date } = {}
 ): Promise<DrainResult> {
   const max = opts.maxBatches ?? DEFAULT_MAX_BATCHES;
@@ -272,7 +280,7 @@ export async function drainLakeQueue(
   const assigned = await prisma.lakeBatch.findMany({ where: { flushId: { not: null } }, select: { flushId: true }, distinct: ["flushId"] });
   for (const { flushId } of assigned) {
     if (flushId === null) continue;
-    const part = await writeFlush(prisma, store, flushId, now);
+    const part = await writeFlush(prisma, store, flushId, now, () => opts.now ?? new Date());
     if (part === null) continue;
     total.batches += part.batches;
     total.events += part.events;
@@ -285,12 +293,22 @@ export async function drainLakeQueue(
   return total;
 }
 
+/** What the writer needs from a store: `put`, and `list` when it can tell whether a flush left a file behind. */
+export type LakeWriterStore = Pick<LakeStore, "put"> & Partial<Pick<LakeStore, "list">>;
+
+/** True when the store answers and holds at least one of the keys. Throws when the store cannot list. */
+async function anyKeyExists(list: LakeStore["list"], keys: string[]): Promise<boolean> {
+  for (const key of keys) if ((await list(key.slice(0, key.lastIndexOf("/")))).some((f) => f.key === key)) return true;
+  return false;
+}
+
 /** Writes one assigned flush, or returns null when another drain holds it or it is already gone. */
 async function writeFlush(
   prisma: PrismaClient,
-  store: Pick<LakeStore, "put">,
+  store: LakeWriterStore,
   flushId: string,
-  now: Date
+  now: Date,
+  clock: () => Date
 ): Promise<Omit<DrainResult, "remaining"> | null> {
   return prisma.$transaction(
     async (tx) => {
@@ -301,6 +319,11 @@ async function writeFlush(
 
       const batches = await tx.lakeBatch.findMany({ where: { flushId }, orderBy: [{ receivedAt: "asc" }, { id: "asc" }] });
       if (batches.length === 0) return null;
+      // The flush's archive time: the one an earlier attempt gave it, else the clock now, under the lock
+      // and after the queue read, so it is as late as it can be before the first put. A stamp from an
+      // earlier attempt is only kept when that attempt may have left a file (decided below, before any put).
+      const stamped = batches.find((b) => b.archivedAt !== null)?.archivedAt ?? null;
+      let archivedAt = stamped ?? clock();
       const ids = batches.map((b) => b.id);
       const tenants = await tx.tenant.findMany({
         where: { id: { in: Array.from(new Set(batches.map((b) => b.tenantId))) } },
@@ -339,7 +362,7 @@ async function writeFlush(
             continue;
           }
           const event = raw as Record<string, unknown>;
-          const row = lakeRow(batch.agentId, event, batch.receivedAt, source);
+          const row = lakeRow(batch.agentId, event, batch.receivedAt, source, archivedAt);
           const type = typeSegment(event.type);
           const day = dayOf(row.at);
           if (isPastRetention(day, retentionOf.get(batch.tenantId) ?? 0, now)) {
@@ -357,9 +380,30 @@ async function writeFlush(
         }
       }
 
-      for (const g of Array.from(groups.values())) {
-        await store.put(lakeKey(g.tenantId, g.day, g.type, flushId.replace(/-/g, "")), encodeParquet(g.rows));
+      const list = Array.from(groups.values());
+      const keys = list.map((g) => lakeKey(g.tenantId, g.day, g.type, flushId.replace(/-/g, "")));
+      let stampCommitted = stamped !== null;
+      if (stamped !== null && store.list && keys.length > 0) {
+        // A retry decides here, before it puts anything, whether the earlier attempt's stamp still holds.
+        // Some key exists: the stamp is on a file the archive may already have shown a run, keep it (a
+        // rewrite under a later stamp would count the events twice). None exists: nothing was ever
+        // readable under that stamp, so it is stale (an outage, a crash, a kill before the first put
+        // landed) and the flush takes a fresh one. The store cannot list: it is still unhealthy, so the
+        // error leaves the flush queued rather than putting under a stamp that cannot be justified.
+        const lister = store;
+        if (!(await anyKeyExists((prefix) => lister.list!(prefix), keys))) {
+          archivedAt = clock();
+          for (const g of list) for (const r of g.rows) r.archivedAt = archivedAt;
+          stampCommitted = false;
+        }
       }
+      // Committed outside the transaction, so the stamp survives a transaction lost after a put. It runs on
+      // its own pool connection while this transaction holds one: a pool of one (`connection_limit=1`), or as
+      // many concurrent drains as connections, would wait for the pool timeout here.
+      if (!stampCommitted && list.length > 0) await prisma.lakeBatch.updateMany({ where: { flushId }, data: { archivedAt } });
+      // A put that throws may still have written its file (a timeout that lands later is accepted, it can
+      // count that flush's events twice); the stamp stays, and the retry decides.
+      for (let i = 0; i < list.length; i++) await store.put(keys[i], encodeParquet(list[i].rows));
 
       await tx.lakeBatch.deleteMany({ where: { id: { in: ids } } });
       return { batches: ids.length, events, files: groups.size, droppedNoRetention, droppedPastRetention, skippedMalformed };

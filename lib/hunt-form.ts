@@ -1,5 +1,6 @@
-import { HUNT_QUERY_VERSION, HuntValidationError, SEVERITIES, parseHuntQuery, type Severity } from "@/lib/hunt";
-import { parseHuntInput } from "@/lib/hunt-input";
+import { HUNT_QUERY_VERSION, HuntValidationError, SEVERITIES, type Severity } from "@/lib/hunt";
+import { EVENT_FILTERS, EVENT_QUERY_VERSION, type EventFilterName } from "@/lib/hunt-events";
+import { isEventQuery, parseHuntInput, parseSavedHuntQuery } from "@/lib/hunt-input";
 
 /**
  * The create and edit form of a saved hunt (#61), as pure functions: the page holds the
@@ -11,6 +12,14 @@ import { parseHuntInput } from "@/lib/hunt-input";
 export type HuntFormValues = {
   name: string;
   description: string;
+  /** What the hunt reads: the detection store, or the raw event archive (the telemetry lake). */
+  source: "detections" | "events";
+  /** Events only: the window in UTC days, as typed. */
+  lastDays: string;
+  /** Events only: event types separated by commas, spaces or new lines. */
+  types: string;
+  /** Events only: exact matches on typed columns; empty ones are left out. */
+  where: Record<EventFilterName, string>;
   /** The window in hours, as typed. */
   lastHours: string;
   /** ATT&CK ids separated by commas, spaces or new lines. */
@@ -24,9 +33,15 @@ export type HuntFormValues = {
   active: boolean;
 };
 
+const EMPTY_EVENT_FILTERS = Object.fromEntries(EVENT_FILTERS.map((name) => [name, ""])) as Record<EventFilterName, string>;
+
 export const EMPTY_HUNT_FORM: HuntFormValues = {
   name: "",
   description: "",
+  source: "detections",
+  lastDays: "7",
+  types: "",
+  where: EMPTY_EVENT_FILTERS,
   lastHours: "168",
   techniques: "",
   severities: [],
@@ -50,6 +65,26 @@ function wholeNumber(value: string, what: string): number {
   return Number(trimmed);
 }
 
+function eventQueryFromForm(values: HuntFormValues): Record<string, unknown> {
+  const query: Record<string, unknown> = { kind: "events", version: EVENT_QUERY_VERSION, lastDays: wholeNumber(values.lastDays, "The window (days)") };
+  const types = splitList(values.types);
+  if (types.length > 0) query.types = types;
+  const where = Object.fromEntries(EVENT_FILTERS.flatMap((name) => (values.where[name].trim().length > 0 ? [[name, values.where[name].trim()]] : [])));
+  if (Object.keys(where).length > 0) query.where = where;
+  return query;
+}
+
+function detectionQueryFromForm(values: HuntFormValues): Record<string, unknown> {
+  const query: Record<string, unknown> = { version: HUNT_QUERY_VERSION, lastHours: wholeNumber(values.lastHours, "The window (hours)") };
+  const techniques = splitList(values.techniques).map((t) => t.toUpperCase());
+  if (techniques.length > 0) query.techniques = techniques;
+  if (values.severities.length > 0) query.severities = values.severities;
+  const agentIds = splitList(values.agentIds);
+  if (agentIds.length > 0) query.agentIds = agentIds;
+  if (values.text.trim().length > 0) query.text = values.text;
+  return query;
+}
+
 /**
  * The request body for a form. An empty field is left out of the query (never sent as an
  * empty list or string, which the API refuses), an empty schedule is `null` (manual only),
@@ -57,16 +92,7 @@ function wholeNumber(value: string, what: string): number {
  */
 export function huntFormToBody(values: HuntFormValues): HuntFormResult {
   try {
-    const query: Record<string, unknown> = {
-      version: HUNT_QUERY_VERSION,
-      lastHours: wholeNumber(values.lastHours, "The window (hours)"),
-    };
-    const techniques = splitList(values.techniques).map((t) => t.toUpperCase());
-    if (techniques.length > 0) query.techniques = techniques;
-    if (values.severities.length > 0) query.severities = values.severities;
-    const agentIds = splitList(values.agentIds);
-    if (agentIds.length > 0) query.agentIds = agentIds;
-    if (values.text.trim().length > 0) query.text = values.text;
+    const query = values.source === "events" ? eventQueryFromForm(values) : detectionQueryFromForm(values);
 
     const body = {
       name: values.name,
@@ -103,12 +129,19 @@ export function huntToFormValues(hunt: {
     active: hunt.active,
   };
   try {
-    const query = parseHuntQuery(hunt.query);
-    values.lastHours = String(query.lastHours);
-    values.techniques = (query.techniques ?? []).join(", ");
-    values.severities = SEVERITIES.filter((s) => query.severities?.includes(s));
-    values.agentIds = (query.agentIds ?? []).join("\n");
-    values.text = query.text ?? "";
+    const query = parseSavedHuntQuery(hunt.query);
+    if (isEventQuery(query)) {
+      values.source = "events";
+      values.lastDays = String(query.lastDays);
+      values.types = (query.types ?? []).join(", ");
+      values.where = { ...EMPTY_EVENT_FILTERS, ...query.where };
+    } else {
+      values.lastHours = String(query.lastHours);
+      values.techniques = (query.techniques ?? []).join(", ");
+      values.severities = SEVERITIES.filter((s) => query.severities?.includes(s));
+      values.agentIds = (query.agentIds ?? []).join("\n");
+      values.text = query.text ?? "";
+    }
   } catch (error) {
     if (!(error instanceof HuntValidationError)) throw error;
   }
@@ -121,7 +154,7 @@ export function huntToFormValues(hunt: {
  */
 export function huntQueryIsValid(query: unknown): boolean {
   try {
-    parseHuntQuery(query);
+    parseSavedHuntQuery(query);
     return true;
   } catch (error) {
     if (error instanceof HuntValidationError) return false;

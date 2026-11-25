@@ -4,6 +4,7 @@ import { requireTenantMember } from "@/lib/admin-auth";
 import { MAX_CONCURRENT_SEARCHES_PER_TENANT, parseSearchRequest, searchFailure, searchWithinLimit } from "@/lib/hunt-search";
 import { searchEventsWithinLimit } from "@/lib/hunt-events-search";
 import { eventArchiveFromEnv } from "@/lib/lake-env";
+import { archiveUnavailableResponse, isArchiveUnavailable } from "@/lib/hunt-archive-response";
 
 /**
  * POST /api/hunts/search — one page of an ad-hoc search over the detection or case store, or over the
@@ -30,15 +31,7 @@ export async function POST(req: NextRequest) {
       request.source === "events"
         ? await searchEventsWithinLimit(prisma, eventArchiveFromEnv(), tenantId, request.query)
         : await searchWithinLimit(prisma, tenantId, request);
-    if (outcome.status === "lake_off") {
-      return NextResponse.json({ error: "The event archive is not available (the telemetry lake is off)" }, { status: 503 });
-    }
-    if (outcome.status === "no_reader") {
-      return NextResponse.json(
-        { error: "The event archive cannot be searched: the telemetry lake is on but its store has no reader" },
-        { status: 501 }
-      );
-    }
+    if (isArchiveUnavailable(outcome)) return archiveUnavailableResponse(outcome);
     if (outcome.status === "busy") {
       return NextResponse.json(
         { error: `At most ${MAX_CONCURRENT_SEARCHES_PER_TENANT} searches at a time per tenant; try again shortly` },

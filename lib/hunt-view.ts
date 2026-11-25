@@ -1,4 +1,6 @@
-import { HUNT_TRANSACTION_TIMEOUT_MS, HuntValidationError, parseHuntQuery } from "@/lib/hunt";
+import { HUNT_TRANSACTION_TIMEOUT_MS, HuntValidationError } from "@/lib/hunt";
+import type { EventQuery } from "@/lib/hunt-events";
+import { isEventQuery, parseSavedHuntQuery } from "@/lib/hunt-input";
 
 /**
  * What the console shows of a saved hunt (#61). Pure functions over what the database
@@ -14,15 +16,26 @@ import { HUNT_TRANSACTION_TIMEOUT_MS, HuntValidationError, parseHuntQuery } from
  */
 export const RUNNING_GRACE_MS = 3 * HUNT_TRANSACTION_TIMEOUT_MS + 5_000;
 
-/** The query in one line: "last 7 days · T1059, T1003 · high, critical · 2 hosts · text “mimikatz”". */
+function describeEventQuery(query: EventQuery): string {
+  const parts = ["events", `last ${query.lastDays} d`];
+  if (query.types?.length) parts.push(query.types.join(", "));
+  for (const [name, value] of Object.entries(query.where ?? {})) parts.push(`${name}=${value}`);
+  return parts.join(" · ");
+}
+
+/**
+ * The query in one line: "last 7 days · T1059, T1003 · high, critical · 2 hosts · text “mimikatz”", or for a
+ * hunt over the event archive "events · last 7 d · exec, dns_query · imagePath=/usr/bin/curl".
+ */
 export function describeQuery(query: unknown): string {
   let parsed;
   try {
-    parsed = parseHuntQuery(query);
+    parsed = parseSavedHuntQuery(query);
   } catch (error) {
     if (error instanceof HuntValidationError) return "stored query no longer valid";
     throw error;
   }
+  if (isEventQuery(parsed)) return describeEventQuery(parsed);
   const parts = [parsed.lastHours % 24 === 0 ? `last ${parsed.lastHours / 24} d` : `last ${parsed.lastHours} h`];
   if (parsed.techniques?.length) parts.push(parsed.techniques.join(", "));
   if (parsed.severities?.length) parts.push(parsed.severities.join(", "));
@@ -96,10 +109,11 @@ export function runResponseMessage(status: number, body: unknown): string | null
 /** What the "Run now" button tells the user when the run completed: "Done: 12 matches, 3 new." */
 export function runSummary(body: unknown): string {
   const record = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
-  const run = record.run as { matchCount?: unknown; newMatchCount?: unknown } | undefined;
+  const run = record.run as { matchCount?: unknown; newMatchCount?: unknown; truncated?: unknown; incomplete?: unknown } | undefined;
   if (typeof run?.matchCount === "number" && typeof run?.newMatchCount === "number") {
-    const matches = `${run.matchCount} match${run.matchCount === 1 ? "" : "es"}`;
-    return `Done: ${matches}, ${run.newMatchCount} new.`;
+    // An archive run counts up to a ceiling and may not have read every day: say so, never a bare number.
+    const matches = `${run.matchCount}${run.truncated === true ? "+" : ""} match${run.matchCount === 1 && run.truncated !== true ? "" : "es"}`;
+    return `Done: ${matches}, ${run.newMatchCount} new.${run.incomplete === true ? " The oldest days were not read." : ""}`;
   }
   return "Done.";
 }

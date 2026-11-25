@@ -52,7 +52,7 @@ and a session's `activeOrganizationId` is used as the tenant id.
 | Model | One row per | Notes |
 | --- | --- | --- |
 | `Hunt` | Saved hunt | `query` is a validated, versioned structured query, never SQL. `version` increases on every change to the query. `scheduleMinutes` null means manual only. |
-| `HuntRun` | Run of a hunt | Append-only. The query as it ran, match and new-match counts, up to 100 sample detection ids, and an error when the run failed. The newest 100 runs per hunt are kept. |
+| `HuntRun` | Run of a hunt | Append-only. The query as it ran, match and new-match counts (for an event hunt, new means written to the archive after the previous run started, by the `archived_at` column, not by the agent's own event stamp), up to 100 sample detection ids (a detection hunt) or the newest 50 events as typed columns (`sample_events`, a hunt over the event archive, with `truncated` and `incomplete` flags), and an error when the run failed. The newest 100 runs per hunt are kept. |
 
 ### Content and releases
 
@@ -74,7 +74,7 @@ and a session's `activeOrganizationId` is used as the tenant id.
 
 | Model | One row per | Notes |
 | --- | --- | --- |
-| `LakeBatch` | Accepted event batch | The queue between ingest and the Parquet writer, filled only while the archive is on. `flushId` assigns a batch to one flush before any file is written, so a retried flush rewrites the same files. |
+| `LakeBatch` | Accepted event batch | The queue between ingest and the Parquet writer, filled only while the archive is on. `flushId` assigns a batch to one flush before any file is written, so a retried flush rewrites the same files. `archivedAt` is the flush's archive time, taken once under its lock just before its first put and kept on retries only while a file of the flush exists: a retry lists the flush's keys before it puts, and if the store answers and none exists (outage, crash or kill before the first put landed) the flush takes a fresh stamp; if the store cannot list, the retry fails and the flush stays queued. A put that timed out but lands later can still be counted twice (accepted). A store without `list` keeps the stamp. A Parquet row carries it as `archived_at`; a run's miss window is one flush's write, and an event hunt's new count is a floor when the run is truncated or incomplete; a file written before that column existed has none and its rows read as their own `ts`. |
 | `LakeDeletion` | Deleted `date=` partition | Written before a retention deletion (object count, bytes, a SHA-256 over the listing) and completed after it. No relation to `Tenant`, so the record outlives the tenant it is about. |
 
 ### Audit and authentication
