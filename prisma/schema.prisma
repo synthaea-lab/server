@@ -356,7 +356,8 @@ model CorpusVersion {
   sampleCount     Int       @map("sample_count") // Number of samples in this version
   exportUrl       String?   @map("export_url") // JSONL export URL (for ML pipeline)
   exportSha256    String?   @map("export_sha256") // SHA-256 of JSONL export
-  status          String    @default("collecting") // collecting, finalized, archived
+  status          String    @default("collecting") // collecting, finalizing, finalized, archived (see CORPUS_VERSION_STATUSES)
+  finalizingSince DateTime? @map("finalizing_since") // When finalize claimed it; a stale claim is taken over
   collectionStart DateTime  @map("collection_start") // Start of collection period
   collectionEnd   DateTime? @map("collection_end") // End of collection period (when finalized)
   createdAt       DateTime  @default(now()) @map("created_at")

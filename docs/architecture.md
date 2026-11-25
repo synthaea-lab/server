@@ -121,6 +121,23 @@ The corpus routes (`app/api/corpus/*`) store benign telemetry samples per tenant
 a finalized version as JSONL for model training. They are not yet part of the agent protocol:
 the submit route is not on the middleware's list of agent paths.
 
+A version's `status` moves `collecting` to `finalizing` to `finalized`. Submit inserts its
+samples first and locks the version row last, with a guarded `UPDATE ... WHERE status =
+'collecting'`; finalize claims the row (`finalizing`) before it reads the samples. A submit
+that loses the race rolls back and answers 409, so the export holds every sample that
+`sampleCount` counts. A finalize that fails inside the process puts the version back to
+`collecting`.
+
+The claim stamps `corpus_versions.finalizing_since`. If the process dies between the claim
+and the `finalized` write (restart, SIGTERM, OOM while loading the samples), the version stays
+`finalizing` and submits answer 409. Recovery is automatic: a finalize call on a version whose
+claim is older than 30 minutes (`FINALIZE_STALE_AFTER_MS` in `lib/corpus.ts`), or has no stamp,
+takes the claim over and exports again. A younger claim answers 409 "finalize in progress". If
+the old process was only slow, it finds its claim gone before it writes `finalized` and stops.
+To reopen by hand instead:
+`UPDATE corpus_versions SET status = 'collecting', finalizing_since = NULL WHERE id = '<id>'
+AND status = 'finalizing'`.
+
 ## Data flows
 
 ### From an agent's upload to a case
