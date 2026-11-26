@@ -12,6 +12,15 @@ import {
 import { createTenantHeaders } from "../helpers/http";
 import { GET } from "@/app/api/cases/[id]/route";
 
+/**
+ * How far a staleness test puts `generatedAt` from the detection writes it is compared to. With
+ * `new Date()` the two can fall in the same millisecond: the write stamps `Detection.updatedAt` with
+ * sub-millisecond precision, PostgreSQL rounds it to the millisecond of `timestamp(3)` (up as often
+ * as down), and `new Date()` truncates. The "not stale" test then saw `updatedAt` 1 ms after a
+ * `generatedAt` taken later, and failed about one run in three on a fast local database.
+ */
+const NARRATIVE_CLOCK_MARGIN_MS = 1_000;
+
 function request(tenantId: string) {
   return new NextRequest("http://localhost/api/cases/x", {
     headers: createTenantHeaders(tenantId),
@@ -117,7 +126,10 @@ describe("GET /api/cases/[id]", () => {
 
     // Detection exists, ungrouped, before the narrative is generated.
     const detection = await createTestDetection(tenant.id, agent.id, { caseId: null });
-    await createTestCaseNarrative(tenant.id, case_.id, { generatedAt: new Date() });
+    // A second back, not `new Date()`: see NARRATIVE_CLOCK_MARGIN_MS.
+    await createTestCaseNarrative(tenant.id, case_.id, {
+      generatedAt: new Date(Date.now() - NARRATIVE_CLOCK_MARGIN_MS),
+    });
 
     // Only grouped into the case afterwards, e.g. by the cron sweep.
     await prisma.detection.update({ where: { id: detection.id }, data: { caseId: case_.id } });
@@ -134,7 +146,10 @@ describe("GET /api/cases/[id]", () => {
     const case_ = await createTestCase(tenant.id);
     await createTestDetection(tenant.id, agent.id, { caseId: case_.id });
 
-    await createTestCaseNarrative(tenant.id, case_.id, { generatedAt: new Date() });
+    // A second ahead, not `new Date()`: see NARRATIVE_CLOCK_MARGIN_MS.
+    await createTestCaseNarrative(tenant.id, case_.id, {
+      generatedAt: new Date(Date.now() + NARRATIVE_CLOCK_MARGIN_MS),
+    });
 
     const res = await GET(request(tenant.id), { params: { id: case_.id } });
     const body = await res.json();
