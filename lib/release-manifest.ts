@@ -12,7 +12,7 @@
 
 import { createHash } from "crypto";
 import { readFile } from "fs/promises";
-import path from "path";
+import { storagePath } from "@/lib/storage-paths";
 import { z } from "zod";
 import { loadManifestBytes } from "@/lib/content-manifest";
 
@@ -72,17 +72,12 @@ export const ReleaseManifest = z
 
 export type ReleaseManifest = z.infer<typeof ReleaseManifest>;
 
-/** Where a release's signed manifest is stored (`storage://` dev convention). */
-export function releaseManifestPath(ring: string, version: number): string {
-  return `manifests/release-${ring}-v${version}.json`;
-}
-
 /**
  * Filesystem path of one release artifact under `storage/releases/v<N>/`.
  * The caller must already have checked `isSafeReleasePath(entryPath)`.
  */
 export function releaseArtifactFile(version: number, entryPath: string): string {
-  return path.join(process.cwd(), "storage", "releases", `v${version}`, ...entryPath.split("/"));
+  return storagePath("releases", `v${version}`, ...entryPath.split("/"));
 }
 
 export type LoadedManifest =

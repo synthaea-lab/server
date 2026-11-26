@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateAgent } from "@/lib/agent-auth";
 import { loadActiveManifest } from "@/lib/active-content-manifest";
+import { artifactFile } from "@/lib/storage-paths";
 import fs from "fs/promises";
 import path from "path";
 import crypto from "crypto";
@@ -67,7 +68,7 @@ export async function GET(req: NextRequest) {
     // For now, serve from local filesystem (dev only)
     let fileBuffer: Buffer;
     try {
-      fileBuffer = await fs.readFile(path.join(process.cwd(), "storage", "artifacts", entry.sha256));
+      fileBuffer = await fs.readFile(artifactFile(entry.sha256));
     } catch (error) {
       if ((error as { code?: string }).code === "ENOENT") {
         return NextResponse.json({ error: "Artifact not found" }, { status: 404 });

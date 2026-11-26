@@ -8,7 +8,7 @@
  */
 
 import { readFile } from "fs/promises";
-import path from "path";
+import { storagePath } from "@/lib/storage-paths";
 import { z } from "zod";
 import { RingSchema } from "@/lib/rings";
 
@@ -177,14 +177,6 @@ function hexToBytes(hex: string) {
 }
 
 /**
- * Content manifest storage path pattern
- * Example: manifests/content-canary_0-v42.json
- */
-export function contentManifestPath(ring: string, version: number): string {
-  return `manifests/content-${ring}-v${version}.json`;
-}
-
-/**
  * Fetches the raw manifest bytes a `ContentRelease.manifestUrl` points at.
  *
  * `storage://<path>` is the local-filesystem convention this dev deployment
@@ -207,8 +199,7 @@ export async function loadManifestBytes(manifestUrl: string): Promise<Buffer> {
     if (relativePath.includes("..") || relativePath.startsWith("/")) {
       throw new Error(`invalid storage:// manifest path: ${manifestUrl}`);
     }
-    const storagePath = path.join(process.cwd(), "storage", relativePath);
-    return readFile(storagePath);
+    return readFile(storagePath(relativePath));
   }
 
   const response = await fetch(manifestUrl);
@@ -216,17 +207,6 @@ export async function loadManifestBytes(manifestUrl: string): Promise<Buffer> {
     throw new Error(`failed to fetch manifest from ${manifestUrl}: ${response.status}`);
   }
   return Buffer.from(await response.arrayBuffer());
-}
-
-/**
- * Content artifact storage path pattern — keyed by hash, not by `path` (#804): every
- * release's bytes stay available under their own hash for as long as any release still
- * references them, so a corrective release over a path a later release modified needs
- * no manual restoration step.
- * Example: artifacts/<sha256 of the file's bytes>
- */
-export function contentArtifactPath(entry: ContentEntry): string {
-  return `artifacts/${entry.sha256}`;
 }
 
 /**

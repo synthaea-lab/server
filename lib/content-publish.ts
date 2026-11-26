@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { readFile } from "fs/promises";
-import path from "path";
+import { artifactFile } from "@/lib/storage-paths";
 import { ContentManifest, loadManifestBytes } from "@/lib/content-manifest";
 import { buildFeed, isValidFeedName } from "@/lib/ioc-feed";
 import { isPublicSuffix } from "@/lib/public-suffix";
@@ -137,7 +137,7 @@ export async function validatePublishable(input: {
     }
     let stored: Buffer;
     try {
-      stored = await readFile(path.join(process.cwd(), "storage", "artifacts", entry.sha256));
+      stored = await readFile(artifactFile(entry.sha256));
     } catch (error) {
       if ((error as { code?: string }).code === "ENOENT") {
         return {
