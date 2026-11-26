@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateAgent } from "@/lib/agent-auth";
-import { beaconTime, parseHeartbeatBody } from "@/lib/health-beacon";
+import { beaconTime, parseHeartbeatBody, type HealthBeacon } from "@/lib/health-beacon";
 import { nextLossObservedAt } from "@/lib/fleet-health";
 import { acceptedOutcome, recordIngest } from "@/lib/ingest-stats";
 
@@ -58,6 +58,7 @@ async function storeBeacon(
         spoolDropped: true,
         enrichDropped: true,
         etwMarksDropped: true,
+        ringDropped: true,
         lossObservedAt: true,
       },
     });
@@ -69,26 +70,7 @@ async function storeBeacon(
       receivedAt,
       lossObservedAt: loss.lossObservedAt,
       agentVersion: beacon.agent_version,
-      spoolBytes: BigInt(beacon.spool_bytes),
-      spoolDropped: BigInt(beacon.spool_dropped),
-      enrichDropped: BigInt(beacon.enrich_dropped),
-      rarityApplied: BigInt(beacon.rarity_applied),
-      rarityWithheld: BigInt(beacon.rarity_withheld),
-      rarityUnapplied: BigInt(beacon.rarity_unapplied),
-      watchdogRestarts: BigInt(beacon.watchdog_restarts),
-      tamperEvents: BigInt(beacon.tamper_events),
-      parentImageEvictedLive: BigInt(beacon.parent_image_evicted_live),
-      parentImageEvictedDead: BigInt(beacon.parent_image_evicted_dead),
-      iocIndicators: BigInt(beacon.ioc_indicators),
-      iocFindings: BigInt(beacon.ioc_findings),
-      iocCooledDown: BigInt(beacon.ioc_cooled_down),
-      iocOwnSkipped: BigInt(beacon.ioc_own_skipped),
-      iocSiblingSkipped: BigInt(beacon.ioc_sibling_skipped),
-      alertsDropped: BigInt(beacon.alerts_dropped),
-      etwPidCacheEvicted: BigInt(beacon.etw_pid_cache_evicted),
-      etwSiloEvicted: BigInt(beacon.etw_silo_evicted),
-      etwMarksDropped: BigInt(beacon.etw_marks_dropped),
-      etwQuarantineUnremembered: BigInt(beacon.etw_quarantine_unremembered),
+      ...storedCounters(beacon),
       sensors: beacon.sensors,
     };
     await prisma.agentHealth.upsert({
@@ -101,4 +83,32 @@ async function storeBeacon(
   } catch (error) {
     console.error("Health beacon store error:", error);
   }
+}
+
+/** The beacon's counters as `agent_health` stores them: every one a `BIGINT` column. */
+function storedCounters(beacon: HealthBeacon) {
+  return {
+    spoolBytes: BigInt(beacon.spool_bytes),
+    spoolDropped: BigInt(beacon.spool_dropped),
+    enrichDropped: BigInt(beacon.enrich_dropped),
+    rarityApplied: BigInt(beacon.rarity_applied),
+    rarityWithheld: BigInt(beacon.rarity_withheld),
+    rarityUnapplied: BigInt(beacon.rarity_unapplied),
+    watchdogRestarts: BigInt(beacon.watchdog_restarts),
+    tamperEvents: BigInt(beacon.tamper_events),
+    parentImageEvictedLive: BigInt(beacon.parent_image_evicted_live),
+    parentImageEvictedDead: BigInt(beacon.parent_image_evicted_dead),
+    iocIndicators: BigInt(beacon.ioc_indicators),
+    iocFindings: BigInt(beacon.ioc_findings),
+    iocCooledDown: BigInt(beacon.ioc_cooled_down),
+    iocOwnSkipped: BigInt(beacon.ioc_own_skipped),
+    iocSiblingSkipped: BigInt(beacon.ioc_sibling_skipped),
+    alertsDropped: BigInt(beacon.alerts_dropped),
+    etwPidCacheEvicted: BigInt(beacon.etw_pid_cache_evicted),
+    etwSiloEvicted: BigInt(beacon.etw_silo_evicted),
+    etwMarksDropped: BigInt(beacon.etw_marks_dropped),
+    etwQuarantineUnremembered: BigInt(beacon.etw_quarantine_unremembered),
+    ringDropped: BigInt(beacon.ring_dropped),
+    execRingDropped: BigInt(beacon.exec_ring_dropped),
+  };
 }

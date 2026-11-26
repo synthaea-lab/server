@@ -72,26 +72,49 @@ export function etwSheddingSummary(shed: EtwShedding): string {
   return moved.length === 0 ? "none" : moved.join(", ");
 }
 
+/** What the Linux eBPF probes lost to a full ring buffer (agent#336). */
+export type RingLoss = {
+  /** Events lost, summed over every ring. */
+  dropped: number;
+  /** The part of `dropped` lost from the exec ring: process starts the rules never saw. */
+  execDropped: number;
+};
+
+/** The ring loss in one cell: "none" (every non-Linux host too), else the total, exec part first. */
+export function ringLossSummary(loss: RingLoss): string {
+  if (loss.dropped === 0) return "none";
+  return loss.execDropped > 0 ? `${loss.dropped} (${loss.execDropped} process starts)` : `${loss.dropped}`;
+}
+
 /** What `agent_health` holds about an agent's last beacon, as far as loss detection reads it. */
 export type StoredLoss = {
   beaconAt: Date;
   spoolDropped: bigint;
   enrichDropped: bigint;
   etwMarksDropped: bigint;
+  ringDropped: bigint;
   lossObservedAt: Date | null;
 };
 
 /** A beacon's loss counters, by the name the agent sends them under. */
-type BeaconLoss = { spool_dropped: number; enrich_dropped: number; etw_marks_dropped: number };
+type BeaconLoss = {
+  spool_dropped: number;
+  enrich_dropped: number;
+  etw_marks_dropped: number;
+  ring_dropped: number;
+};
 
 /**
  * Each counter that counts telemetry which never reaches the server, paired with the column it is
- * stored in. A lost quarantine mark is a `FileQuarantine` event that is never sent (agent#314).
+ * stored in. A lost quarantine mark is a `FileQuarantine` event that is never sent (agent#314); a
+ * ring drop is an event the eBPF probes never delivered (agent#336). `exec_ring_dropped` is part of
+ * `ring_dropped`, so it never rises alone and needs no entry of its own.
  */
 const LOSS_COUNTERS = [
   ["spool_dropped", "spoolDropped"],
   ["enrich_dropped", "enrichDropped"],
   ["etw_marks_dropped", "etwMarksDropped"],
+  ["ring_dropped", "ringDropped"],
 ] as const satisfies ReadonlyArray<readonly [keyof BeaconLoss, keyof StoredLoss]>;
 
 /**

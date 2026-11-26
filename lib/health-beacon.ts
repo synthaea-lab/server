@@ -53,6 +53,11 @@ export const HealthBeacon = z.object({
   etw_silo_evicted: counter.default(0),
   etw_marks_dropped: counter.default(0),
   etw_quarantine_unremembered: counter.default(0),
+  // #95: events the Linux eBPF probes lost to a full ring buffer, summed over every ring, and the
+  // part of it lost from the exec ring (agent#336; zero on other platforms). Absent from an older
+  // agent: zero.
+  ring_dropped: counter.default(0),
+  exec_ring_dropped: counter.default(0),
 });
 export type HealthBeacon = z.infer<typeof HealthBeacon>;
 

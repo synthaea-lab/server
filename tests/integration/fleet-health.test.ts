@@ -53,6 +53,7 @@ const getFleet = async (tenantId: string) =>
         marksDropped: number;
         quarantineUnremembered: number;
       };
+      ringLoss: { dropped: number; execDropped: number };
       sensors: unknown[];
     } | null;
   }[];
@@ -104,6 +105,17 @@ describe("fleet health against a real database (issue #83)", () => {
       expect((await getFleet(tenant.id))[0].status).toBe("healthy");
 
       await beat("agent-l2", { beacon: at(30, { enrich_dropped: 7560 }) });
+
+      const [row] = await getFleet(tenant.id);
+      expect(row.status).toBe("degraded");
+      expect(row.health?.lossObservedAt).not.toBeNull();
+    });
+
+    it("degrades a host when its eBPF rings lose events between two beacons (#95)", async () => {
+      const tenant = await createTestTenant();
+      await createTestAgent(tenant.id, "agent-l-ring");
+      await beat("agent-l-ring", { beacon: at(0) });
+      await beat("agent-l-ring", { beacon: at(30, { ring_dropped: 1000 }) });
 
       const [row] = await getFleet(tenant.id);
       expect(row.status).toBe("degraded");
@@ -238,6 +250,15 @@ describe("fleet health against a real database (issue #83)", () => {
     });
   });
 
+  it("stores what the eBPF rings lost and shows it in the fleet view (#95)", async () => {
+    const tenant = await createTestTenant();
+    await createTestAgent(tenant.id, "agent-h10");
+    await beat("agent-h10", { beacon: beacon({ ring_dropped: 1000, exec_ring_dropped: 3 }) });
+
+    const [row] = await getFleet(tenant.id);
+    expect(row.health).toMatchObject({ ringLoss: { dropped: 1000, execDropped: 3 } });
+  });
+
   it("stores the beacon of an agent that predates those counters, with zeros", async () => {
     const tenant = await createTestTenant();
     await createTestAgent(tenant.id, "agent-h8");
@@ -251,6 +272,7 @@ describe("fleet health against a real database (issue #83)", () => {
       parentImageEvictedDead: 0,
       alertsDropped: 0,
       etwShedding: { pidCacheEvicted: 0, siloEvicted: 0, marksDropped: 0, quarantineUnremembered: 0 },
+      ringLoss: { dropped: 0, execDropped: 0 },
     });
   });
 
