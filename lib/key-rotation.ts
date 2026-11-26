@@ -12,7 +12,7 @@
  */
 
 import { readFile } from "fs/promises";
-import path from "path";
+import { storagePath } from "@/lib/storage-paths";
 import { z } from "zod";
 import { isRing } from "@/lib/rings";
 
@@ -64,7 +64,7 @@ export type KeyRotationManifest = z.infer<typeof KeyRotationManifest>;
 /** Filesystem path of a ring's pending rotation, or `null` for a ring name that is not one. */
 export function keyRotationFile(ring: string): string | null {
   if (!isRing(ring)) return null;
-  return path.join(process.cwd(), "storage", "key-rotations", `${ring}.json`);
+  return storagePath("key-rotations", `${ring}.json`);
 }
 
 export type LoadedRotation =

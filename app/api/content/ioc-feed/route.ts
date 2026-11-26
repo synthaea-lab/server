@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { access, mkdir, rename, rm, writeFile } from "fs/promises";
 import { randomUUID } from "crypto";
 import path from "path";
+import { artifactsDir } from "@/lib/storage-paths";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireTenantAdmin } from "@/lib/admin-auth";
@@ -38,8 +39,8 @@ const StageSchema = z.object({
  * the process: two requests staging the same content would write and rename the same path, and the
  * second rename fails with ENOENT), and it is removed if the write or the rename fails.
  */
-async function stage(artifactsDir: string, { entry, bytes }: StagedArtifact): Promise<void> {
-  const dest = path.join(artifactsDir, entry.sha256);
+async function stage(storeDir: string, { entry, bytes }: StagedArtifact): Promise<void> {
+  const dest = path.join(storeDir, entry.sha256);
   const tmp = `${dest}.${process.pid}.${randomUUID()}.tmp`;
   try {
     await writeFile(tmp, bytes);
@@ -105,9 +106,9 @@ export async function POST(req: NextRequest) {
     const staged = buildIocStage(validation.data);
     if (!staged.ok) return NextResponse.json({ error: staged.error }, { status: 422 });
 
-    const artifactsDir = path.join(process.cwd(), "storage", "artifacts");
-    await mkdir(artifactsDir, { recursive: true });
-    for (const item of staged.artifacts) await stage(artifactsDir, item);
+    const storeDir = artifactsDir();
+    await mkdir(storeDir, { recursive: true });
+    for (const item of staged.artifacts) await stage(storeDir, item);
 
     await prisma.auditLog.create({
       data: {

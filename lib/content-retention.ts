@@ -1,5 +1,6 @@
 import { readdir, stat, unlink } from "fs/promises";
 import path from "path";
+import { artifactsDir } from "@/lib/storage-paths";
 import type { PrismaClient } from "@prisma/client";
 import { ContentManifest, loadManifestBytes } from "@/lib/content-manifest";
 
@@ -72,7 +73,7 @@ export async function pruneUnreferencedArtifacts(
 ): Promise<ArtifactRetentionResult> {
   const now = options.now ?? new Date();
   const minAgeMs = options.minAgeMs ?? DEFAULT_MIN_AGE_MS;
-  const dir = options.artifactsDir ?? path.join(process.cwd(), "storage", "artifacts");
+  const dir = options.artifactsDir ?? artifactsDir();
 
   // Read the referenced set first: a file listed by a release published while this runs is
   // protected by the grace period, not by this set.

@@ -8,7 +8,7 @@
  */
 
 import { readFile } from "fs/promises";
-import path from "path";
+import { storagePath } from "@/lib/storage-paths";
 import { z } from "zod";
 import { RingSchema } from "@/lib/rings";
 
@@ -207,8 +207,7 @@ export async function loadManifestBytes(manifestUrl: string): Promise<Buffer> {
     if (relativePath.includes("..") || relativePath.startsWith("/")) {
       throw new Error(`invalid storage:// manifest path: ${manifestUrl}`);
     }
-    const storagePath = path.join(process.cwd(), "storage", relativePath);
-    return readFile(storagePath);
+    return readFile(storagePath(relativePath));
   }
 
   const response = await fetch(manifestUrl);

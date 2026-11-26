@@ -12,7 +12,7 @@
 
 import { createHash } from "crypto";
 import { readFile } from "fs/promises";
-import path from "path";
+import { storagePath } from "@/lib/storage-paths";
 import { z } from "zod";
 import { loadManifestBytes } from "@/lib/content-manifest";
 
@@ -82,7 +82,7 @@ export function releaseManifestPath(ring: string, version: number): string {
  * The caller must already have checked `isSafeReleasePath(entryPath)`.
  */
 export function releaseArtifactFile(version: number, entryPath: string): string {
-  return path.join(process.cwd(), "storage", "releases", `v${version}`, ...entryPath.split("/"));
+  return storagePath("releases", `v${version}`, ...entryPath.split("/"));
 }
 
 export type LoadedManifest =
