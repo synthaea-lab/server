@@ -37,7 +37,7 @@ and a session's `activeOrganizationId` is used as the tenant id.
 | `Detection` | Detection | `event` holds the triggering event and `meta` the rest of the agent's detection ([Agent protocol](agent-protocol.md#detections)). `caseId` is null until `group-detections` assigns it; `fleetCaseId` is set when `join-fleet-cases` links it. `(agentId, ingestId)` is unique for idempotent uploads. `updatedAt` moves on every change, which is what a narrative's staleness is checked against. |
 | `Case` | Case of one host | `severity` (`low` to `critical`), `status` (`open`, `investigating`, `resolved`, `false_positive`). Deleting a case sets its detections' `caseId` to null; evidence is never deleted with a case. |
 | `FleetCase` | Cross-host case | Written only by `join-fleet-cases`; rebuildable from the detections. `severity` is the highest of its detections and never decreases. |
-| `FleetCaseEntity` | Tenant, kind and key | A `sha256` or `identity` a fleet case joined on. Unique per tenant, so a later sighting grows the existing fleet case instead of opening another. |
+| `FleetCaseEntity` | Fleet case, kind and key | A `sha256` or `identity` a fleet case joined on. `join-fleet-cases` keeps one active (`open` or `investigating`) fleet case per entity and tenant, so a later sighting grows it instead of opening another. A closed case keeps its entities and stops growing: a later sighting opens a new case, which lists the same entity. |
 | `CaseNarrative` | Generated narrative | Append-only: text, citations (detection id and claim), model, provider label, prompt version and who generated it. |
 
 ### Prevalence

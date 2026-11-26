@@ -243,9 +243,13 @@ model FleetCase {
   @@map("fleet_cases")
 }
 
-// One entity a fleet case joined on. Unique per tenant: an entity belongs to
-// one fleet case, so a later sighting of it grows that case instead of opening
-// a second one, and a detection that bridges two cases merges them.
+// One entity a fleet case joined on. Unique per case, not per tenant: a closed
+// case keeps its entities while a new case for a later sighting records them
+// too (#86). "An entity has one ACTIVE fleet case per tenant" is held by
+// join-fleet-cases under its per-tenant advisory lock, not by the database: a
+// later sighting grows that case, and a detection that bridges two active cases
+// merges them. (A partial unique index would say it in SQL, but this repo is
+// `db push` only.)
 model FleetCaseEntity {
   id          String   @id @default(uuid())
   tenantId    String   @map("tenant_id")
@@ -256,8 +260,8 @@ model FleetCaseEntity {
 
   fleetCase FleetCase @relation(fields: [fleetCaseId], references: [id], onDelete: Cascade)
 
-  @@unique([tenantId, kind, key])
-  @@index([fleetCaseId])
+  @@unique([fleetCaseId, kind, key])
+  @@index([tenantId, kind, key])
   @@map("fleet_case_entities")
 }
 

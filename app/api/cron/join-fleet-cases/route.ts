@@ -16,9 +16,11 @@ const JOIN_LABEL = "Fleet case join";
  *
  * Cron endpoint (issue #62, box 1): joins each tenant's recent detections across hosts by a shared
  * entity (`lib/fleet-case.ts`: a file hash or an identity, with its caps) into fleet cases.
- * Idempotent: a run over the same detections changes nothing. An entity belongs to one fleet case
- * per tenant, so a later sighting grows it, and a detection that bridges two cases merges them
- * into the older one. A fleet case's severity is the highest of its detections and never goes
+ * Idempotent: a run over the same detections changes nothing. An entity belongs to one active
+ * (`open` or `investigating`) fleet case per tenant, so a later sighting grows it, and a detection
+ * that bridges two active cases merges them into the older one. A closed case keeps what it has
+ * and stops growing (#86): its detections stay on it and are not joined again, and a later
+ * sighting of its entities opens a new case. A fleet case's severity is the highest of its detections and never goes
  * down. It reads detections and writes only `FleetCase`, `FleetCaseEntity` and
  * `Detection.fleetCaseId`; a detection's own host case is untouched.
  *

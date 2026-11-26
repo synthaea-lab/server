@@ -211,6 +211,113 @@ describe("GET /api/cron/join-fleet-cases", () => {
     expect(await prisma.detection.count({ where: { tenantId: tenant.id, fleetCaseId: null } })).toBe(0);
   });
 
+  describe("a closed fleet case (#86)", () => {
+    /** Agents a and b ran SHA, joined into one fleet case, which is then set to `status`. Set on
+     * the row: nothing in the console writes `FleetCase.status` yet (#12). */
+    async function judgedCase(status: string) {
+      const tenant = await createTestTenant();
+      const [a, b, c, d, e] = await Promise.all(
+        ["agent-a", "agent-b", "agent-c", "agent-d", "agent-e"].map((n) => createTestAgent(tenant.id, n))
+      );
+      const da = await createTestDetection(tenant.id, a.id, { event: exec(), severity: "critical", timestamp: at(0) });
+      const db = await createTestDetection(tenant.id, b.id, { event: exec(), severity: "critical", timestamp: at(1) });
+      await GET(cronRequest());
+      const judged = await prisma.fleetCase.update({
+        where: { id: (await prisma.fleetCase.findFirstOrThrow({ where: { tenantId: tenant.id } })).id },
+        data: { status },
+      });
+      return { tenant, agents: { a, b, c, d, e }, judged, judgedDetectionIds: [da.id, db.id].sort() };
+    }
+
+    /** What an analyst judged: the case row, its detections and its entities. */
+    async function snapshot(id: string) {
+      const row = await prisma.fleetCase.findUniqueOrThrow({ where: { id }, include: { entities: true } });
+      const detections = await prisma.detection.findMany({ where: { fleetCaseId: id }, select: { id: true } });
+      return {
+        row: { ...row, entities: row.entities.map((e) => [e.kind, e.key]) },
+        detectionIds: detections.map((d) => d.id).sort(),
+      };
+    }
+
+    it.each(["resolved", "false_positive"])(
+      "a later sighting opens a new case instead of growing a %s one, which keeps everything it has",
+      async (status) => {
+        const { tenant, agents, judged, judgedDetectionIds } = await judgedCase(status);
+        const before = await snapshot(judged.id);
+        const dc = await createTestDetection(tenant.id, agents.c.id, { event: exec(), severity: "low", timestamp: at(10) });
+        const dd = await createTestDetection(tenant.id, agents.d.id, { event: exec(), severity: "low", timestamp: at(11) });
+
+        const body = await (await GET(cronRequest())).json();
+
+        expect(body.fleetCasesCreated).toBe(1);
+        expect(body.fleetCasesMerged).toBe(0);
+        expect(await snapshot(judged.id)).toEqual(before);
+        expect(before.detectionIds).toEqual(judgedDetectionIds);
+        const fresh = await prisma.fleetCase.findFirstOrThrow({
+          where: { tenantId: tenant.id, id: { not: judged.id } },
+          include: { entities: true },
+        });
+        // The new case stands on the new sightings alone: their severity, their two agents.
+        expect(fresh).toMatchObject({ status: "open", severity: "low", agentCount: 2 });
+        expect(fresh.entities.map((e) => [e.kind, e.key])).toEqual([["sha256", SHA]]);
+        const joined = await prisma.detection.findMany({ where: { fleetCaseId: fresh.id }, select: { id: true } });
+        expect(joined.map((d) => d.id).sort()).toEqual([dc.id, dd.id].sort());
+
+        // And a second run changes nothing: the closed case's entity does not pull the new one back.
+        const again = await (await GET(cronRequest())).json();
+        expect(again).toMatchObject({ fleetCasesCreated: 0, fleetCasesMerged: 0, detectionsJoined: 0 });
+      }
+    );
+
+    it("does not count a judged detection toward the two agents a new case needs", async () => {
+      const { tenant, agents, judged } = await judgedCase("false_positive");
+      const before = await snapshot(judged.id);
+      const dc = await createTestDetection(tenant.id, agents.c.id, { event: exec(), timestamp: at(10) });
+
+      const body = await (await GET(cronRequest())).json();
+
+      expect(body.fleetCasesCreated).toBe(0);
+      expect(await prisma.fleetCase.count({ where: { tenantId: tenant.id } })).toBe(1);
+      expect(await snapshot(judged.id)).toEqual(before);
+      expect((await prisma.detection.findUniqueOrThrow({ where: { id: dc.id } })).fleetCaseId).toBeNull();
+    });
+
+    it("a bridge between an active case and a closed one leaves the closed one alone", async () => {
+      const { tenant, agents, judged } = await judgedCase("false_positive");
+      const { b, c, d, e } = agents;
+      await createTestDetection(tenant.id, c.id, { event: session("mallory"), timestamp: at(2) });
+      await createTestDetection(tenant.id, d.id, { event: session("mallory"), timestamp: at(3) });
+      await GET(cronRequest());
+      const active = await prisma.fleetCase.findFirstOrThrow({
+        where: { tenantId: tenant.id, id: { not: judged.id } },
+      });
+      const before = await snapshot(judged.id);
+
+      // Agent b, whose earlier detection was judged, signs in as mallory; c and e run the hash.
+      await createTestDetection(tenant.id, b.id, { event: session("mallory"), timestamp: at(4) });
+      await createTestDetection(tenant.id, c.id, { event: exec(), timestamp: at(5) });
+      await createTestDetection(tenant.id, e.id, { event: exec(), timestamp: at(6) });
+      await GET(cronRequest());
+
+      expect(await snapshot(judged.id)).toEqual(before);
+      const others = await prisma.fleetCase.findMany({ where: { tenantId: tenant.id, id: { not: judged.id } } });
+      expect(others.map((o) => o.id)).toContain(active.id);
+      expect(others.every((o) => o.status === "open")).toBe(true);
+    });
+
+    it("an investigating case still grows", async () => {
+      const { tenant, agents, judged } = await judgedCase("investigating");
+      await createTestDetection(tenant.id, agents.c.id, { event: exec(), timestamp: at(10) });
+
+      const body = await (await GET(cronRequest())).json();
+
+      expect(body.fleetCasesCreated).toBe(0);
+      const cases = await prisma.fleetCase.findMany({ where: { tenantId: tenant.id } });
+      expect(cases).toHaveLength(1);
+      expect(cases[0]).toMatchObject({ id: judged.id, status: "investigating", agentCount: 3 });
+    });
+  });
+
   it("joins nothing for one agent, and nothing across tenants", async () => {
     const t1 = await createTestTenant();
     const t2 = await createTestTenant();
