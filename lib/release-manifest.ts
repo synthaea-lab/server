@@ -72,11 +72,6 @@ export const ReleaseManifest = z
 
 export type ReleaseManifest = z.infer<typeof ReleaseManifest>;
 
-/** Where a release's signed manifest is stored (`storage://` dev convention). */
-export function releaseManifestPath(ring: string, version: number): string {
-  return `manifests/release-${ring}-v${version}.json`;
-}
-
 /**
  * Filesystem path of one release artifact under `storage/releases/v<N>/`.
  * The caller must already have checked `isSafeReleasePath(entryPath)`.

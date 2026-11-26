@@ -25,7 +25,12 @@ export function artifactsDir(): string {
   return storagePath("artifacts");
 }
 
-/** One artifact of the store, named by its SHA-256. */
+/**
+ * One artifact of the store, named by its SHA-256, not by its manifest `path` (#804): every
+ * release's bytes stay available under their own hash for as long as any release still
+ * references them, so a corrective release over a path a later release modified needs no
+ * manual restoration step.
+ */
 export function artifactFile(sha256: string): string {
   return path.join(artifactsDir(), sha256);
 }
