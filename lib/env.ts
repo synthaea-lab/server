@@ -69,3 +69,37 @@ function parseOrigin(entry: string): string {
   if (!isBareHttpOrigin(url)) throw invalidOriginError();
   return url.origin;
 }
+
+/**
+ * The secret nginx adds to every request as `X-Proxy-Secret` (`NGINX_PROXY_SECRET`). `undefined`
+ * when unset or empty: the caller refuses every request then, it never treats "no secret" as a match.
+ * The value is not trimmed: it is compared byte for byte with the header.
+ */
+export function proxySecret(env: Environment): string | undefined {
+  return env.NGINX_PROXY_SECRET || undefined;
+}
+
+/** The bearer token of the `/api/cron/*` routes (`CRON_SECRET`). `undefined` when unset or empty: every job call is refused then. */
+export function cronSecret(env: Environment): string | undefined {
+  return env.CRON_SECRET || undefined;
+}
+
+/**
+ * The `auth_user.id` values allowed to act before a tenant exists (`PLATFORM_OPERATOR_USER_IDS`,
+ * comma-separated, entries trimmed, empty entries dropped). Unset or empty is an empty list: nobody is allowed.
+ */
+export function platformOperatorIds(env: Environment): string[] {
+  return (env.PLATFORM_OPERATOR_USER_IDS ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0);
+}
+
+/** The port the Next.js server listens on (`PORT`, 3000 when unset or empty). A value that is not 1-65535 throws. */
+export function listenPort(env: Environment): number {
+  const raw = env.PORT;
+  if (raw === undefined || raw === "") return 3000;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > 65535) throw new Error(`PORT must be an integer from 1 to 65535, got "${raw}"`);
+  return n;
+}

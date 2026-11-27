@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { proxySecret } from "@/lib/env";
 
 /**
  * Headers the middleware derives from the session. Route handlers trust them
@@ -95,8 +96,8 @@ export function getUserId(req: NextRequest): string {
  * @throws Error if proxy authentication fails
  */
 export function verifyProxyAuth(req: NextRequest): void {
-  const proxySecret = req.headers.get("X-Proxy-Secret");
-  const expectedSecret = process.env.NGINX_PROXY_SECRET;
+  const presentedSecret = req.headers.get("X-Proxy-Secret");
+  const expectedSecret = proxySecret(process.env);
 
   if (!expectedSecret) {
     throw new Error(
@@ -105,7 +106,7 @@ export function verifyProxyAuth(req: NextRequest): void {
   }
 
   // Constant-time comparison to prevent timing attacks
-  if (!proxySecret || !timingSafeEqual(proxySecret, expectedSecret)) {
+  if (!presentedSecret || !timingSafeEqual(presentedSecret, expectedSecret)) {
     throw new Error("Invalid proxy authentication - request did not come from nginx");
   }
 }

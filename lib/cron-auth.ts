@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { scheduleDecoyReport } from "@/lib/decoy";
+import { cronSecret } from "@/lib/env";
 
 export type CronAuthResult = "ok" | "unconfigured" | "unauthorized";
 
@@ -44,7 +45,7 @@ export function checkCronAuth(
  */
 export async function verifyCronRequest(req: NextRequest): Promise<NextResponse | null> {
   const authorization = req.headers.get("Authorization");
-  switch (checkCronAuth(authorization, process.env.CRON_SECRET)) {
+  switch (checkCronAuth(authorization, cronSecret(process.env))) {
     case "ok":
       return null;
     case "unconfigured":

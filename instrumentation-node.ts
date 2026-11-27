@@ -1,4 +1,5 @@
-import { authTrustedOrigins, type Environment } from "@/lib/env";
+import { authTrustedOrigins, listenPort, type Environment } from "@/lib/env";
+import { snapshotParamsFromEnv } from "@/lib/snapshot-publish";
 import { prisma } from "@/lib/prisma";
 import { checkDecoyTable, checkShutdownOwnership, installDecoyShutdownFlush } from "@/lib/decoy";
 
@@ -21,6 +22,8 @@ export function startDecoyWatch(): void {
 export function assertStartupConfig(env: Environment, exit: (code: number) => never = process.exit): void {
   try {
     authTrustedOrigins(env);
+    listenPort(env);
+    snapshotParamsFromEnv(env);
   } catch (error) {
     console.error(`Invalid configuration, exiting: ${error instanceof Error ? error.message : String(error)}`);
     exit(1);

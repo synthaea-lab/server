@@ -52,6 +52,21 @@ describe("assertStartupConfig", () => {
     log.mockRestore();
   }, 30_000);
 
+  it("exits with status 1 on a bad PORT or SNAPSHOT_* value", async () => {
+    const { assertStartupConfig } = await import("../../instrumentation-node");
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(() => assertStartupConfig({ PORT: "http" }, exit)).toThrow("exit 1");
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("PORT"));
+    expect(() => assertStartupConfig({ SNAPSHOT_MAX_BYTES: "1.5" }, exit)).toThrow("exit 1");
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("SNAPSHOT_MAX_BYTES"));
+    log.mockRestore();
+  });
+
+  it("does not require a secret: an unset secret is a closed door, not a startup error", async () => {
+    const { assertStartupConfig } = await import("../../instrumentation-node");
+    expect(() => assertStartupConfig({ PORT: "8080" }, exit)).not.toThrow();
+  });
+
   it("does nothing on a valid or unset value", async () => {
     const { assertStartupConfig } = await import("../../instrumentation-node");
     expect(() => assertStartupConfig({ AUTH_TRUSTED_ORIGINS: "https://console.example.com" }, exit)).not.toThrow();

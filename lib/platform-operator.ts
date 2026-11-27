@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { platformOperatorIds } from "@/lib/env";
 import { getUserId } from "@/lib/tenant";
 
 /**
@@ -18,11 +19,7 @@ export async function requirePlatformOperator(
   req: NextRequest
 ): Promise<{ userId: string } | { response: NextResponse }> {
   const userId = getUserId(req);
-  const allowed = (process.env.PLATFORM_OPERATOR_USER_IDS ?? "")
-    .split(",")
-    .map((id) => id.trim())
-    .filter((id) => id.length > 0);
-  if (!allowed.includes(userId)) {
+  if (!platformOperatorIds(process.env).includes(userId)) {
     return {
       response: NextResponse.json({ error: "Platform operator access required" }, { status: 403 }),
     };
