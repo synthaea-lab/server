@@ -4,11 +4,11 @@ import path from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { cleanDatabase, createTestAgent, createTestTenant, prisma } from "../helpers/db";
-import { FsLakeStore, type DeleteResult, type LakeStore } from "@/lib/lake-store";
-import { drainLakeQueue, enqueueLakeBatch, encodeParquet, lakeKey, type LakeRow } from "@/lib/lake-writer";
-import { compactLake, compactedKey } from "@/lib/lake-compaction";
-import { queryLake } from "@/lib/lake-query";
-import { pruneLake } from "@/lib/lake-retention";
+import { FsLakeStore, type DeleteResult, type LakeStore } from "@/lib/lake/store";
+import { drainLakeQueue, enqueueLakeBatch, encodeParquet, lakeKey, type LakeRow } from "@/lib/lake/writer";
+import { compactLake, compactedKey } from "@/lib/lake/compaction";
+import { queryLake } from "@/lib/lake/query";
+import { pruneLake } from "@/lib/lake/retention";
 import { GET as compactRoute } from "@/app/api/cron/compact-lake/route";
 
 const DAY = 86_400_000;

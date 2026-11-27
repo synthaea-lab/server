@@ -1,8 +1,8 @@
 import type { PrismaClient } from "@prisma/client";
-import { fleetStatus, sensorsOf, lostRecently, type FleetStatus } from "@/lib/fleet-health";
+import { fleetStatus, sensorsOf, lostRecently, type FleetStatus } from "@/lib/fleet/health";
 import { enqueueForChannel, type NotifyEvent } from "./outbox";
 import { consoleUrl } from "./urls";
-import { findActiveSilentCases } from "@/lib/silent-agent-case";
+import { findActiveSilentCases } from "@/lib/cases/silent-agent-case";
 
 /**
  * Host state transitions for the notification outbox (ADR-0036 point 2, slice 2, #863).

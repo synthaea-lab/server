@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireTenantAdmin } from "@/lib/admin-auth";
+import { requireTenantAdmin } from "@/lib/access/admin-auth";
 import { guardOptionsFromEnv } from "@/lib/notify/guard";
 import { openSecret, openUrl } from "@/lib/notify/secret";
 import { sendWebhook } from "@/lib/notify/send";

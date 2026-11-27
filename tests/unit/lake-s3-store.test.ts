@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DeleteObjectsCommand, GetBucketVersioningCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { FsLakeStore, LakeNotDeletableError, lakeEnabled } from "@/lib/lake-store";
-import { S3LakeReader, S3LakeStore } from "@/lib/lake-s3-store";
-import { lakeReaderFromEnv, lakeStoreFromEnv, s3Settings } from "@/lib/lake-env";
-import { queryLake } from "@/lib/lake-query";
-import { searchFailure } from "@/lib/hunt-search";
+import { FsLakeStore, LakeNotDeletableError, lakeEnabled } from "@/lib/lake/store";
+import { S3LakeReader, S3LakeStore } from "@/lib/lake/s3-store";
+import { lakeReaderFromEnv, lakeStoreFromEnv, s3Settings } from "@/lib/lake/env";
+import { queryLake } from "@/lib/lake/query";
+import { searchFailure } from "@/lib/hunt/search";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";

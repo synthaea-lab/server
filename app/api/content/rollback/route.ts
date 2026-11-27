@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireTenantAdmin } from "@/lib/admin-auth";
+import { requireTenantAdmin } from "@/lib/access/admin-auth";
 import { z } from "zod";
-import { RingSchema } from "@/lib/rings";
+import { RingSchema } from "@/lib/content/rings";
 import { recordAudit } from "@/lib/audit";
 import {
   correctiveReleaseAdvice,
   findRollbackReleases,
   lockContentRing,
-} from "@/lib/content-rollback";
+} from "@/lib/content/rollback";
 
 const RollbackSchema = z.object({
   ring: RingSchema,

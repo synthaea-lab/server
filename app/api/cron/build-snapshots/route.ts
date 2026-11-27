@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyCronRequest } from "@/lib/cron-auth";
+import { verifyCronRequest } from "@/lib/access/cron-auth";
 import { prisma } from "@/lib/prisma";
-import { publishCommonSetSnapshot, snapshotParamsFromEnv } from "@/lib/snapshot-publish";
-import { loadSnapshotSigner } from "@/lib/snapshot-manifest";
+import { publishCommonSetSnapshot, snapshotParamsFromEnv } from "@/lib/content/snapshot-publish";
+import { loadSnapshotSigner } from "@/lib/content/snapshot-manifest";
 
 /**
  * GET /api/cron/build-snapshots

@@ -10,7 +10,7 @@ import {
   createTestTenant,
   prisma,
 } from "../helpers/db";
-import { extractObservations, recordObservations } from "@/lib/prevalence";
+import { extractObservations, recordObservations } from "@/lib/prevalence/prevalence";
 
 // The page is a server component: it asks better-auth for the session and renders the case with
 // the fleet triage lines (issue #76). Only the session and the client-side button are replaced;

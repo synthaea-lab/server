@@ -6,7 +6,7 @@ import {
   lakeBacklogBreach,
   lakeBacklogCaseDescription,
   lakeBacklogLimitsFromEnv,
-} from "@/lib/lake-backlog-case";
+} from "@/lib/lake/backlog-case";
 
 const LIMITS = { maxAgeMs: 900_000, maxBatches: 100 };
 

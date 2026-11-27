@@ -1,7 +1,7 @@
 import { authTrustedOrigins, listenPort, type Environment } from "@/lib/env";
-import { snapshotParamsFromEnv } from "@/lib/snapshot-publish";
+import { snapshotParamsFromEnv } from "@/lib/content/snapshot-publish";
 import { prisma } from "@/lib/prisma";
-import { checkDecoyTable, checkShutdownOwnership, installDecoyShutdownFlush } from "@/lib/decoy";
+import { checkDecoyTable, checkShutdownOwnership, installDecoyShutdownFlush } from "@/lib/ingest/decoy";
 
 /**
  * Decoy credentials (issue #81), at server start: finish the pending alarms when the process is

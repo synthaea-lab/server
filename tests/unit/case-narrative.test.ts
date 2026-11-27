@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { citationsJson, citationsOf } from "@/lib/case-narrative";
+import { citationsJson, citationsOf } from "@/lib/cases/narrative";
 
 describe("narrative citations read from the Json column", () => {
   it("reads back what was stored", () => {

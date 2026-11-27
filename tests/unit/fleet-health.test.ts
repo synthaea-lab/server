@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { MAX_STORABLE_COUNTER, beaconTime, parseHeartbeatBody } from "@/lib/health-beacon";
-import { loadFleet } from "@/lib/fleet";
+import { MAX_STORABLE_COUNTER, beaconTime, parseHeartbeatBody } from "@/lib/ingest/health-beacon";
+import { loadFleet } from "@/lib/fleet/fleet";
 import {
   LOSS_WINDOW_MS,
   SILENCE_THRESHOLD_MS,
@@ -10,7 +10,7 @@ import {
   iocFeedSummary,
   nextLossObservedAt,
   sensorsOf,
-} from "@/lib/fleet-health";
+} from "@/lib/fleet/health";
 
 const beacon = (over: Record<string, unknown> = {}) => ({
   timestamp_ns: 1_790_000_000_000_000_000,

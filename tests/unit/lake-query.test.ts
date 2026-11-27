@@ -3,9 +3,9 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parquetReadObjects } from "hyparquet";
-import { FsLakeStore, type LakeReader } from "@/lib/lake-store";
-import { encodeParquet, lakeKey, lakeRow, type LakeRow as WriterRow } from "@/lib/lake-writer";
-import { MAX_FILES, MAX_ROWS, MAX_TYPES, queryLake } from "@/lib/lake-query";
+import { FsLakeStore, type LakeReader } from "@/lib/lake/store";
+import { encodeParquet, lakeKey, lakeRow, type LakeRow as WriterRow } from "@/lib/lake/writer";
+import { MAX_FILES, MAX_ROWS, MAX_TYPES, queryLake } from "@/lib/lake/query";
 
 // The real reader, watched: a test can see which columns a query asked the file for.
 vi.mock("hyparquet", async (original) => {

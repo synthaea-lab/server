@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { iocEntryError } from "@/lib/content-publish";
-import { ContentType } from "@/lib/content-manifest";
+import { iocEntryError } from "@/lib/content/publish";
+import { ContentType } from "@/lib/content/manifest";
 
 const HASH = "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f";
 const feed = (text: string) => Buffer.from(text);

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { cleanDatabase, createTestAgent, createTestTenant, prisma } from "../helpers/db";
-import { loadLakeBacklog } from "@/lib/lake-backlog";
-import { enqueueLakeBatch } from "@/lib/lake-writer";
+import { loadLakeBacklog } from "@/lib/lake/backlog";
+import { enqueueLakeBatch } from "@/lib/lake/writer";
 
 const NOW = new Date(Date.UTC(2026, 10, 9, 12, 0, 0));
 const ev = (n: number) => ({ type: "exec", meta: { timestamp_ns: (NOW.getTime() + n) * 1_000_000 }, image_path: `/bin/${n}` });

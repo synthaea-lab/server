@@ -8,7 +8,7 @@ import { join } from "path";
 const db = vi.hoisted(() => ({ agent: { findUnique: vi.fn() } }));
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
 const active = vi.hoisted(() => ({ loadActiveManifest: vi.fn() }));
-vi.mock("@/lib/active-content-manifest", () => active);
+vi.mock("@/lib/content/active-manifest", () => active);
 
 import { GET } from "@/app/api/content/artifact/route";
 

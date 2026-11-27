@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "fs";
 import path from "path";
-import { buildFeedFromCsv, parseCsv } from "@/lib/ioc-csv";
-import { buildFeed } from "@/lib/ioc-feed";
+import { buildFeedFromCsv, parseCsv } from "@/lib/ioc/csv";
+import { buildFeed } from "@/lib/ioc/feed";
 
 const HASH = "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f";
 const suffixes = new Set(["com", "co.uk"]);

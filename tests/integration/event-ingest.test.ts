@@ -2,7 +2,7 @@ import { beforeEach, afterAll, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { cleanDatabase, createTestAgent, createTestTenant, prisma } from "../helpers/db";
 import { createMtlsHeaders } from "../helpers/http";
-import { getPrevalence } from "@/lib/prevalence";
+import { getPrevalence } from "@/lib/prevalence/prevalence";
 import { POST } from "@/app/api/v1/ingest/events/route";
 
 const SECRET = "test-proxy-secret";

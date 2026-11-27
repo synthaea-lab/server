@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { damageManifestOf } from "@/lib/damage-manifest";
-import { requireTenantMember } from "@/lib/admin-auth";
+import { damageManifestOf } from "@/lib/ingest/damage-manifest";
+import { requireTenantMember } from "@/lib/access/admin-auth";
 import { NotFound, route } from "@/lib/http/handler";
-import { loadCaseDetail } from "@/lib/case-detail";
+import { loadCaseDetail } from "@/lib/cases/detail";
 
 /**
  * GET /api/cases/[id]

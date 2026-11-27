@@ -17,8 +17,8 @@
 import { z } from "zod";
 import { EvidenceGraph } from "./evidence-graph";
 import { PROMPT_VERSION, buildSystemPrompt } from "./prompt";
-import { NarrativeCitationSchema } from "@/lib/case-narrative";
-import type { NarrativeCitation } from "@/lib/case-narrative";
+import { NarrativeCitationSchema } from "@/lib/cases/narrative";
+import type { NarrativeCitation } from "@/lib/cases/narrative";
 
 const DEFAULT_BASE_URL = "http://localhost:11434/v1";
 const DEFAULT_MODEL = "llama3.1";

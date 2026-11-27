@@ -13,7 +13,7 @@ import { POST } from "@/app/api/ingest/events/route";
 import { POST as postV1Events } from "@/app/api/v1/ingest/events/route";
 import { POST as postV1Heartbeat } from "@/app/api/v1/ingest/heartbeat/route";
 import { POST as postHeartbeat } from "@/app/api/ingest/heartbeat/route";
-import { aggregateSightings } from "@/lib/prevalence";
+import { aggregateSightings } from "@/lib/prevalence/prevalence";
 
 const SECRET = "test-proxy-secret";
 const SHA = "c".repeat(64);

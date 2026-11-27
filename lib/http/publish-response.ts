@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { PublishOutcome } from "@/lib/release-publish";
+import type { PublishOutcome } from "@/lib/content/release-publish";
 
 /**
  * The HTTP answer to a release publish (`POST /api/release`, `POST /api/content/release`):

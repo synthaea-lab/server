@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { requireConsoleTenant } from "@/lib/console-session";
+import { requireConsoleTenant } from "@/lib/access/console-session";
 import { NoOrganization } from "@/components/NoOrganization";
-import { huntQueryIsValid, huntToFormValues } from "@/lib/hunt-form";
+import { huntQueryIsValid, huntToFormValues } from "@/lib/hunt/form";
 import { HuntForm } from "@/components/HuntForm";
 import { notFound } from "next/navigation";
 

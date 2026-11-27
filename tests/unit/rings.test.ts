@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { CANARY_RINGS, RINGS, RingSchema, isRing, loadRings } from "@/lib/rings";
-import { FLEET_PAGE_SIZE } from "@/lib/fleet";
+import { CANARY_RINGS, RINGS, RingSchema, isRing, loadRings } from "@/lib/content/rings";
+import { FLEET_PAGE_SIZE } from "@/lib/fleet/fleet";
 
 const NOW = new Date("2026-10-01T12:00:00Z");
 const release = (releaseVersion: number, status: string) => ({

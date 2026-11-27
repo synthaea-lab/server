@@ -7,7 +7,7 @@ import {
   deleteResponseMessage,
   isSignInRedirect,
   SESSION_EXPIRED_MESSAGE,
-} from "@/lib/hunt-view";
+} from "@/lib/hunt/view";
 
 /** Deletes a saved hunt and its run history after a confirmation (#61), then refreshes the list. */
 export function DeleteHuntButton({ huntId, name }: { huntId: string; name: string }) {

@@ -10,7 +10,7 @@ import {
   checkDecoyTable,
   flushDecoyReports,
   hashToken,
-} from "@/lib/decoy";
+} from "@/lib/ingest/decoy";
 
 /**
  * Decoy credentials (issue #81) through the real routes and database: an agent registers the

@@ -3,8 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrismaClient } from "@prisma/client";
-import { FsLakeStore, LakeNotDeletableError, type LakeStore } from "@/lib/lake-store";
-import { ageInDays, isExpired, manifestHash, pruneLake } from "@/lib/lake-retention";
+import { FsLakeStore, LakeNotDeletableError, type LakeStore } from "@/lib/lake/store";
+import { ageInDays, isExpired, manifestHash, pruneLake } from "@/lib/lake/retention";
 
 const NOW = new Date(Date.UTC(2026, 9, 29, 15, 30, 0));
 const file = (tenant: string, date: string, type = "exec", name = "f") => `tenant=${tenant}/date=${date}/type=${type}/${name}.parquet`;

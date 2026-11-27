@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateAgent } from "@/lib/agent-auth";
-import { loadKeyRotation } from "@/lib/key-rotation";
+import { authenticateAgent } from "@/lib/access/agent-auth";
+import { loadKeyRotation } from "@/lib/content/key-rotation";
 
 /**
  * GET /api/release/key-rotation

@@ -19,5 +19,5 @@ A detection's first triggering event is stored in `Detection.event`; the other e
 structured fields (score, attributions, techniques) are kept in `Detection.meta`. The agent's own
 case identifier is kept there too, but cases are formed server-side.
 
-Code: `app/api/ingest/`, `lib/agent-auth.ts`, `lib/detection-payload.ts`, `lib/health-beacon.ts`.
+Code: `app/api/ingest/`, `lib/access/agent-auth.ts`, `lib/ingest/detection-payload.ts`, `lib/ingest/health-beacon.ts`.
 Tests: `tests/integration/ingest.test.ts`, `event-ingest.test.ts`, `decoy-tokens.test.ts`.

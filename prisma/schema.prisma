@@ -226,7 +226,7 @@ model Case {
 }
 
 // Fleet case (issue #62, box 1): detections of two or more agents joined by a
-// shared entity (a file hash or an identity, `lib/fleet-case.ts`). Written only
+// shared entity (a file hash or an identity, `lib/cases/fleet-case.ts`). Written only
 // by cron/join-fleet-cases; rebuildable from the detections, which stay the
 // evidence. `severity` is the highest of its detections and never goes down.
 model FleetCase {
@@ -407,7 +407,7 @@ model PrevalenceSighting {
   id        String   @id @default(uuid())
   tenantId  String   @map("tenant_id")
   agentId   String   @map("agent_id")
-  // sha256 | image_path | transition | domain (lib/prevalence.ts)
+  // sha256 | image_path | transition | domain (lib/prevalence/prevalence.ts)
   kind      String
   key       String
   firstSeen DateTime @map("first_seen")
@@ -421,7 +421,7 @@ model PrevalenceSighting {
   @@map("prevalence_sightings")
 }
 
-// Ingest health (issue #899, lib/ingest-stats.ts): what /api/ingest/* took, skipped and refused
+// Ingest health (issue #899, lib/ingest/stats.ts): what /api/ingest/* took, skipped and refused
 // per agent, kind (events | detection | beacon) and hour. Best-effort counters; hourly rows are
 // pruned by the prune-prevalence cron.
 model IngestStat {
@@ -451,7 +451,7 @@ model IngestStat {
 
 // Saved hunt (issue #61): a versioned, structured query over the tenant's
 // detections, with an owner and an optional schedule. Not raw SQL: `query` is
-// the `HuntQuery` of lib/hunt.ts, validated on every write and compiled to
+// the `HuntQuery` of lib/hunt/hunt.ts, validated on every write and compiled to
 // parameterized SQL, so a hunt cannot name a table or reach another tenant.
 // Result history is HuntRun; a hunt that keeps matching is what detection
 // content graduates from (#618). See ADR-0025.
@@ -741,7 +741,7 @@ model CommonSetSnapshot {
   entryCount Int      @map("entry_count")
   sha256     String
   size       Int
-  // The SnapshotManifest as signed (lib/snapshot-manifest.ts).
+  // The SnapshotManifest as signed (lib/content/snapshot-manifest.ts).
   manifest   Json
   artifact   Bytes
   updatedAt  DateTime @updatedAt @map("updated_at")
@@ -751,7 +751,7 @@ model CommonSetSnapshot {
   @@map("common_set_snapshots")
 }
 
-// Telemetry lake queue (issue #77, ADR-0041, lib/lake-writer.ts): one row per accepted ingest
+// Telemetry lake queue (issue #77, ADR-0041, lib/lake/writer.ts): one row per accepted ingest
 // batch, kept until the lake writer has written its events as Parquet and deleted the row. Only
 // filled when LAKE_DIR is set. The events are the batch as received, already checked to be
 // objects with a string `type`.
@@ -762,7 +762,7 @@ model LakeBatch {
   receivedAt DateTime @map("received_at")
   events     Json
   eventCount Int      @map("event_count")
-  // Set, and committed, before any file of the flush is written (lib/lake-writer.ts, #1093): a batch
+  // Set, and committed, before any file of the flush is written (lib/lake/writer.ts, #1093): a batch
   // that has one belongs to that flush for good, so a retry after a crash writes the same files
   // under the same names and cannot write an event twice. Null: not yet assigned.
   flushId    String?  @map("flush_id")
@@ -781,7 +781,7 @@ model LakeBatch {
   @@map("lake_batches")
 }
 
-// Telemetry lake deletions (issue #77, ADR-0041 section 5, lib/lake-retention.ts): one row per
+// Telemetry lake deletions (issue #77, ADR-0041 section 5, lib/lake/retention.ts): one row per
 // `date=` prefix the retention job deleted, so that "provable deletion" has a record. The row is
 // written BEFORE the deletion (what was listed and is about to go: count, bytes, listing hash) and
 // completed after it (what really went, what did not, whether the prefix listed empty). A row with

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyCronRequest } from "@/lib/cron-auth";
+import { verifyCronRequest } from "@/lib/access/cron-auth";
 import { prisma } from "@/lib/prisma";
-import { lakeStoreFromEnv } from "@/lib/lake-env";
+import { lakeStoreFromEnv } from "@/lib/lake/env";
 import { positiveIntFromEnv } from "@/lib/env";
-import { DEFAULT_MAX_BATCHES, drainLakeQueue } from "@/lib/lake-writer";
+import { DEFAULT_MAX_BATCHES, drainLakeQueue } from "@/lib/lake/writer";
 
 /**
  * GET /api/cron/write-lake

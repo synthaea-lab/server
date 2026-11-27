@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { requireConsoleTenant } from "@/lib/console-session";
+import { requireConsoleTenant } from "@/lib/access/console-session";
 import { NoOrganization } from "@/components/NoOrganization";
-import { severityColor, statusColor } from "@/lib/case-display";
+import { severityColor, statusColor } from "@/lib/cases/display";
 import { GenerateNarrativeButton } from "@/components/GenerateNarrativeButton";
-import { loadCaseDetail } from "@/lib/case-detail";
-import type { CaseDetail } from "@/lib/case-detail";
+import { loadCaseDetail } from "@/lib/cases/detail";
+import type { CaseDetail } from "@/lib/cases/detail";
 import { notFound } from "next/navigation";
 
 export default async function CaseDetailPage({ params }: { params: { id: string } }) {

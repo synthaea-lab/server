@@ -1,15 +1,15 @@
 import { prisma } from "@/lib/prisma";
-import { requireConsoleTenant } from "@/lib/console-session";
+import { requireConsoleTenant } from "@/lib/access/console-session";
 import { NoOrganization } from "@/components/NoOrganization";
-import { loadFleet, type FleetAgent } from "@/lib/fleet";
-import { loadRings, type RingStatus, type RolloutState } from "@/lib/rings";
-import { etwSheddingSummary, iocFeedSummary, ringLossSummary, type FleetStatus } from "@/lib/fleet-health";
-import { loadIngestHealth, type AgentIngestHealth } from "@/lib/ingest-stats";
-import { loadLakeBacklog, type LakeBacklog } from "@/lib/lake-backlog";
-import { DEFAULT_BACKLOG_MAX_AGE_MS } from "@/lib/lake-backlog-case";
-import { lakeEnabled } from "@/lib/lake-store";
+import { loadFleet, type FleetAgent } from "@/lib/fleet/fleet";
+import { loadRings, type RingStatus, type RolloutState } from "@/lib/content/rings";
+import { etwSheddingSummary, iocFeedSummary, ringLossSummary, type FleetStatus } from "@/lib/fleet/health";
+import { loadIngestHealth, type AgentIngestHealth } from "@/lib/ingest/stats";
+import { loadLakeBacklog, type LakeBacklog } from "@/lib/lake/backlog";
+import { DEFAULT_BACKLOG_MAX_AGE_MS } from "@/lib/lake/backlog-case";
+import { lakeEnabled } from "@/lib/lake/store";
 import RingControls from "@/components/RingControls";
-import { NON_ADMIN_NOTE } from "@/lib/ring-actions";
+import { NON_ADMIN_NOTE } from "@/lib/content/ring-actions";
 
 export const dynamic = "force-dynamic";
 

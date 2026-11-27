@@ -40,7 +40,7 @@ import { GET as listCorpusVersions } from "@/app/api/corpus/versions/route";
 import { GET as getPrevalence } from "@/app/api/prevalence/route";
 import { GET as pivotGraph } from "@/app/api/graph/pivot/route";
 import { GET as listNotificationChannels } from "@/app/api/notify/channels/route";
-import { requireTenantMember } from "@/lib/admin-auth";
+import { requireTenantMember } from "@/lib/access/admin-auth";
 
 const params = { id: "c1", agentId: "a1", ring: "prod" };
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateAgent } from "@/lib/agent-auth";
+import { authenticateAgent } from "@/lib/access/agent-auth";
 import { prisma } from "@/lib/prisma";
-import { SnapshotManifest } from "@/lib/snapshot-manifest";
+import { SnapshotManifest } from "@/lib/content/snapshot-manifest";
 
 /**
  * GET /api/snapshot/manifest

@@ -44,8 +44,8 @@ Two ways to run the application:
 ## Conventions
 
 - **Tenancy comes from the identity, never the request.** A console route gets the tenant from
-  [`requireTenantMember`](../lib/admin-auth.ts) or [`requireTenantAdmin`](../lib/admin-auth.ts);
-  an agent route from [`authenticateAgent`](../lib/agent-auth.ts). Every query filters on it.
+  [`requireTenantMember`](../lib/access/admin-auth.ts) or [`requireTenantAdmin`](../lib/access/admin-auth.ts);
+  an agent route from [`authenticateAgent`](../lib/access/agent-auth.ts). Every query filters on it.
   Another tenant's record is a `404`.
 - **Agent and console identities never mix.** Agent routes authenticate with the certificate the
   proxy passed; console routes with a session. A route serves one or the other.
@@ -53,7 +53,7 @@ Two ways to run the application:
   imports cannot use Prisma, `lib/auth.ts` or `node:` modules. Server components and route
   handlers run on Node.
 - **Tenants and organizations share an id.** Create tenants only with
-  [`provisionTenant`](../lib/tenant-provisioning.ts).
+  [`provisionTenant`](../lib/access/tenant-provisioning.ts).
 - **Logic in `lib/`, I/O at the edge.** Keep decisions in pure functions that take plain data and
   a clock; keep Prisma calls in the route or a thin store module. Most of the unit suite depends on
   this split.

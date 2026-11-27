@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyCronRequest } from "@/lib/cron-auth";
+import { verifyCronRequest } from "@/lib/access/cron-auth";
 import { prisma } from "@/lib/prisma";
-import { lakeStoreFromEnv } from "@/lib/lake-env";
-import { pruneLake } from "@/lib/lake-retention";
-import { LakeNotDeletableError } from "@/lib/lake-store";
+import { lakeStoreFromEnv } from "@/lib/lake/env";
+import { pruneLake } from "@/lib/lake/retention";
+import { LakeNotDeletableError } from "@/lib/lake/store";
 
 /**
  * GET /api/cron/prune-lake

@@ -8,7 +8,7 @@ import {
   refusedOutcome,
   windowStart,
   lagOf,
-} from "@/lib/ingest-stats";
+} from "@/lib/ingest/stats";
 
 const LAG = { sumMs: 900, count: 3, maxMs: 500 };
 const at = (h: number, m = 0, s = 0) => new Date(Date.UTC(2026, 9, 20, h, m, s));

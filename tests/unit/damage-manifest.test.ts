@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_DAMAGE_ENTRIES, damageManifestOf } from "@/lib/damage-manifest";
+import { MAX_DAMAGE_ENTRIES, damageManifestOf } from "@/lib/ingest/damage-manifest";
 
 const rename = (from: string, to: string, ns: number) => ({
   type: "file_rename",

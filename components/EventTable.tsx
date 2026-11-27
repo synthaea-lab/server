@@ -1,5 +1,5 @@
-import { formatTime } from "@/lib/hunt-view";
-import type { EventRow } from "@/lib/hunt-events-search";
+import { formatTime } from "@/lib/hunt/view";
+import type { EventRow } from "@/lib/hunt/events-search";
 
 /** The typed columns of archived events, one row each (a saved event hunt's matches and its runs' samples). */
 export function EventTable({ rows }: { rows: EventRow[] }) {

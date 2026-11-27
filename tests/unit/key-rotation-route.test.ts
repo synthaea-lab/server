@@ -9,7 +9,7 @@ const db = vi.hoisted(() => ({ agent: { findUnique: vi.fn() } }));
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
 
 import { GET } from "@/app/api/release/key-rotation/route";
-import { KeyRotationManifest } from "@/lib/key-rotation";
+import { KeyRotationManifest } from "@/lib/content/key-rotation";
 
 const SECRET = "test-proxy-secret";
 const HEX = (c: string) => c.repeat(64);

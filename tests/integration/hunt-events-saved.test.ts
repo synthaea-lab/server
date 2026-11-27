@@ -12,11 +12,11 @@ import { POST as runHuntRoute } from "@/app/api/hunts/[id]/run/route";
 import { GET as matchesRoute } from "@/app/api/hunts/[id]/matches/route";
 import { POST as graduateHunt } from "@/app/api/hunts/[id]/graduate/route";
 import { GET as runHuntsCron } from "@/app/api/cron/run-hunts/route";
-import { FsLakeStore, type EventArchive } from "@/lib/lake-store";
+import { FsLakeStore, type EventArchive } from "@/lib/lake/store";
 import { parquetWriteBuffer } from "hyparquet-writer";
-import { drainLakeQueue, enqueueLakeBatch, lakeKey } from "@/lib/lake-writer";
-import { MAX_CONCURRENT_SEARCHES_PER_TENANT } from "@/lib/hunt-search";
-import { runHunt } from "@/lib/hunt-runner";
+import { drainLakeQueue, enqueueLakeBatch, lakeKey } from "@/lib/lake/writer";
+import { MAX_CONCURRENT_SEARCHES_PER_TENANT } from "@/lib/hunt/search";
+import { runHunt } from "@/lib/hunt/runner";
 
 const HOUR = 3_600_000;
 const NOW = new Date(Date.UTC(2026, 10, 18, 12, 0, 0));

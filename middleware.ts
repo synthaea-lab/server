@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { lookupSession } from "@/lib/session-lookup";
-import { buildIdentityHeaders, stripIdentityHeaders } from "@/lib/tenant";
+import { lookupSession } from "@/lib/access/session-lookup";
+import { buildIdentityHeaders, stripIdentityHeaders } from "@/lib/access/tenant";
 
 export async function middleware(req: NextRequest) {
   // Public routes - no authentication required, and no identity either: the

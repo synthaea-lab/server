@@ -15,6 +15,6 @@ Built:
 Planned: alerting on telemetry-loss anomalies (a host that stops losing events and stops sending
 is a tamper signal) and per-tenant ingest quotas.
 
-Code: `app/console/ops/`, `app/api/ops/`, `lib/fleet-health.ts`, `lib/ingest-stats.ts`,
-`lib/rings.ts`, `lib/ring-actions.ts`. Tests: `tests/integration/fleet-health.test.ts`,
+Code: `app/console/ops/`, `app/api/ops/`, `lib/fleet/health.ts`, `lib/ingest/stats.ts`,
+`lib/content/rings.ts`, `lib/content/ring-actions.ts`. Tests: `tests/integration/fleet-health.test.ts`,
 `ops-ring-controls.test.ts`, `ring-status.test.ts`.

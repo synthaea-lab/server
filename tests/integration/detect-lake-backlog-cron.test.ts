@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { cleanDatabase, createTestAgent, createTestTenant, prisma } from "../helpers/db";
 import { GET } from "@/app/api/cron/detect-lake-backlog/route";
-import { enqueueLakeBatch } from "@/lib/lake-writer";
+import { enqueueLakeBatch } from "@/lib/lake/writer";
 
 function cronRequest() {
   return new NextRequest("http://localhost/api/cron/detect-lake-backlog", {

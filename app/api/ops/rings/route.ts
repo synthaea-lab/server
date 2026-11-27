@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireTenantMember } from "@/lib/admin-auth";
-import { loadRings } from "@/lib/rings";
+import { requireTenantMember } from "@/lib/access/admin-auth";
+import { loadRings } from "@/lib/content/rings";
 
 /**
  * GET /api/ops/rings

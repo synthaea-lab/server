@@ -3,13 +3,13 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { CreateBucketCommand, DeleteBucketCommand, DeleteObjectsCommand, ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
 import { parquetReadObjects } from "hyparquet";
 import { cleanDatabase, createTestAgent, createTestTenant, prisma } from "../helpers/db";
-import { lakeStoreFromEnv } from "@/lib/lake-env";
-import type { LakeStore } from "@/lib/lake-store";
-import { drainLakeQueue, enqueueLakeBatch } from "@/lib/lake-writer";
-import { pruneLake } from "@/lib/lake-retention";
-import { compactLake } from "@/lib/lake-compaction";
-import { lakeCompactionIoFromEnv } from "@/lib/lake-env";
-import { queryLake } from "@/lib/lake-query";
+import { lakeStoreFromEnv } from "@/lib/lake/env";
+import type { LakeStore } from "@/lib/lake/store";
+import { drainLakeQueue, enqueueLakeBatch } from "@/lib/lake/writer";
+import { pruneLake } from "@/lib/lake/retention";
+import { compactLake } from "@/lib/lake/compaction";
+import { lakeCompactionIoFromEnv } from "@/lib/lake/env";
+import { queryLake } from "@/lib/lake/query";
 
 /**
  * Against a real S3-compatible server. Skipped unless LAKE_S3_TEST_ENDPOINT is set (for example

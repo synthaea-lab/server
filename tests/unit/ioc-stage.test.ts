@@ -19,8 +19,8 @@ vi.mock("@/lib/prisma", () => ({ prisma: db }));
 
 import { POST as stageRoute } from "@/app/api/content/ioc-feed/route";
 import { POST as publish } from "@/app/api/content/release/route";
-import { buildIocStage, MAX_STAGE_BODY_BYTES } from "@/lib/ioc-stage";
-import { iocEntryError } from "@/lib/content-publish";
+import { buildIocStage, MAX_STAGE_BODY_BYTES } from "@/lib/ioc/stage";
+import { iocEntryError } from "@/lib/content/publish";
 
 const sha = (b: Buffer | string) => createHash("sha256").update(b).digest("hex");
 const HASH = "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f";

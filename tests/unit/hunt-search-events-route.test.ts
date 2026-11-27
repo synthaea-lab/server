@@ -8,14 +8,14 @@ const db = vi.hoisted(() => ({ $transaction: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
 // A store without a reader no longer exists in the configuration (S3 has one, #1105), so the route's answer for it is reached through the environment seam.
 const archive = vi.hoisted(() => ({ noReader: false }));
-vi.mock("@/lib/lake-env", async (importActual) => {
-  const actual = await importActual<typeof import("@/lib/lake-env")>();
+vi.mock("@/lib/lake/env", async (importActual) => {
+  const actual = await importActual<typeof import("@/lib/lake/env")>();
   return { ...actual, eventArchiveFromEnv: (env?: Record<string, string | undefined>) => (archive.noReader ? { state: "no_reader" as const } : actual.eventArchiveFromEnv(env)) };
 });
 
 import { POST } from "@/app/api/hunts/search/route";
-import { FsLakeStore } from "@/lib/lake-store";
-import { encodeParquet, lakeKey, lakeRow } from "@/lib/lake-writer";
+import { FsLakeStore } from "@/lib/lake/store";
+import { encodeParquet, lakeKey, lakeRow } from "@/lib/lake/writer";
 
 const TODAY = new Date().toISOString().slice(0, 10);
 const eventQuery = { kind: "events", version: 1, lastDays: 2 };

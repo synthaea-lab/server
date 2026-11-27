@@ -7,10 +7,10 @@ import {
   createTestDetection,
   prisma,
 } from "../helpers/db";
-import { MAX_AGENTS_PER_ENTITY } from "@/lib/fleet-case";
+import { MAX_AGENTS_PER_ENTITY } from "@/lib/cases/fleet-case";
 import { GET } from "@/app/api/cron/join-fleet-cases/route";
 import { prisma as routePrisma } from "@/lib/prisma";
-import { recordObservations } from "@/lib/prevalence";
+import { recordObservations } from "@/lib/prevalence/prevalence";
 
 const SHA = "a".repeat(64);
 const OTHER_SHA = "b".repeat(64);

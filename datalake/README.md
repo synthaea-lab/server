@@ -46,7 +46,7 @@ substrate planned for [cloud-side detection](../cloud-detection/README.md).
   before the deletes lists it again and reads the merged file instead of failing. The merge holds a
   per-partition lock for at most 240 s and stops writing past that, and re-reads the tenant's retention
   under the lock. The job reads with the writer's credentials. Run it after `write-lake`, daily or less often.
-- **Reading.** `queryLake` (`lib/lake-query.ts`) reads one tenant's events over a range of days
+- **Reading.** `queryLake` (`lib/lake/query.ts`) reads one tenant's events over a range of days
   (at most 366) with optional type and exact-match filters, listing one day at a time so history
   outside the range is never touched. Every key read is checked against the tenant, day and type
   asked for. It reads with `hyparquet`, in process; this is sized for a hunt over days on one
@@ -100,5 +100,5 @@ The development compose file does not include an object store; point `LAKE_S3_*`
 - Ingest parses JSON as double-precision numbers, so integers above 2^53 in typed fields are
   rounded; the `event` column keeps the original text.
 
-Code: `lib/lake-*.ts`, `app/api/cron/write-lake/`, `app/api/cron/compact-lake/`, `app/api/cron/prune-lake/`. Tests:
+Code: `lib/lake/`, `app/api/cron/write-lake/`, `app/api/cron/compact-lake/`, `app/api/cron/prune-lake/`. Tests:
 `tests/integration/lake-*.test.ts`; the S3 tests use an in-memory bucket.

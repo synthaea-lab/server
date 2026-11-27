@@ -6,7 +6,7 @@ import { config, middleware } from "@/middleware";
 // The middleware runs in the Edge runtime, so it must not import `@/lib/auth` (Prisma): it
 // asks `lookupSession` (#810).
 const { getSession } = vi.hoisted(() => ({ getSession: vi.fn() }));
-vi.mock("@/lib/session-lookup", () => ({ lookupSession: getSession }));
+vi.mock("@/lib/access/session-lookup", () => ({ lookupSession: getSession }));
 
 /**
  * The request headers `NextResponse.next({ request: { headers } })` forwards

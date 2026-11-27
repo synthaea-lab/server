@@ -1,9 +1,9 @@
 import { DeleteHuntButton } from "@/components/DeleteHuntButton";
 import { prisma } from "@/lib/prisma";
-import { requireConsoleTenant } from "@/lib/console-session";
+import { requireConsoleTenant } from "@/lib/access/console-session";
 import { NoOrganization } from "@/components/NoOrganization";
-import { describeQuery, describeSchedule, formatTime, runState, STATE_LABEL, STATE_STYLE } from "@/lib/hunt-view";
-import { newestRunsByHunt } from "@/lib/hunt-runs";
+import { describeQuery, describeSchedule, formatTime, runState, STATE_LABEL, STATE_STYLE } from "@/lib/hunt/view";
+import { newestRunsByHunt } from "@/lib/hunt/runs";
 
 export const dynamic = "force-dynamic";
 

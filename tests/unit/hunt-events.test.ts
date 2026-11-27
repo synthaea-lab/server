@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { HuntValidationError } from "@/lib/hunt";
-import { MAX_EVENT_TYPES, MAX_EVENT_WINDOW_DAYS, MAX_FILTER_LENGTH, eventWindow, parseEventQuery } from "@/lib/hunt-events";
+import { HuntValidationError } from "@/lib/hunt/hunt";
+import { MAX_EVENT_TYPES, MAX_EVENT_WINDOW_DAYS, MAX_FILTER_LENGTH, eventWindow, parseEventQuery } from "@/lib/hunt/events";
 
 const base = { kind: "events", version: 1, lastDays: 7 };
 const HASH = "a".repeat(64);

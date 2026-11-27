@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireTenantMember } from "@/lib/admin-auth";
-import { HuntValidationError } from "@/lib/hunt";
-import { isEventQuery, parseSavedHuntQuery } from "@/lib/hunt-input";
-import { draftRuleFromHunt, parseGraduationRequest } from "@/lib/hunt-graduation";
-import { draftIocSetFromHunt, graduationKind, iocObservations, parseIocGraduationRequest } from "@/lib/hunt-ioc-draft";
-import { countReportingHosts, getPrevalenceBatch, lookedUpKeys, prevalenceKey } from "@/lib/prevalence";
+import { requireTenantMember } from "@/lib/access/admin-auth";
+import { HuntValidationError } from "@/lib/hunt/hunt";
+import { isEventQuery, parseSavedHuntQuery } from "@/lib/hunt/input";
+import { draftRuleFromHunt, parseGraduationRequest } from "@/lib/hunt/graduation";
+import { draftIocSetFromHunt, graduationKind, iocObservations, parseIocGraduationRequest } from "@/lib/hunt/ioc-draft";
+import { countReportingHosts, getPrevalenceBatch, lookedUpKeys, prevalenceKey } from "@/lib/prevalence/prevalence";
 
 /** The detection ids a run sampled: its JSON column holds an array of strings. */
 function sampledDetectionIds(sample: unknown): string[] {

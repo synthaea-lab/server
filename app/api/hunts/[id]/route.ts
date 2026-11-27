@@ -1,9 +1,9 @@
 import { dropHuntFromChannels } from "@/lib/notify/outbox";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireTenantMember } from "@/lib/admin-auth";
-import { HUNT_RUN_HISTORY_SELECT, HuntValidationError } from "@/lib/hunt";
-import { parseHuntInput, parseSavedHuntQuery, sameQuery, type HuntInput, type SavedQuery } from "@/lib/hunt-input";
+import { requireTenantMember } from "@/lib/access/admin-auth";
+import { HUNT_RUN_HISTORY_SELECT, HuntValidationError } from "@/lib/hunt/hunt";
+import { parseHuntInput, parseSavedHuntQuery, sameQuery, type HuntInput, type SavedQuery } from "@/lib/hunt/input";
 import { parseLimit } from "@/lib/http/query";
 
 type Params = { params: { id: string } };

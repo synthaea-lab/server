@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { requireConsoleTenant } from "@/lib/console-session";
+import { requireConsoleTenant } from "@/lib/access/console-session";
 import { NoOrganization } from "@/components/NoOrganization";
-import { HUNT_RUN_HISTORY_SELECT, HUNT_RUNS_KEPT } from "@/lib/hunt";
+import { HUNT_RUN_HISTORY_SELECT, HUNT_RUNS_KEPT } from "@/lib/hunt/hunt";
 import {
   describeQuery,
   describeSchedule,
@@ -11,12 +11,12 @@ import {
   runState,
   STATE_LABEL,
   STATE_STYLE,
-} from "@/lib/hunt-view";
+} from "@/lib/hunt/view";
 import { RunHuntButton } from "@/components/RunHuntButton";
 import { GraduateHuntButton } from "@/components/GraduateHuntButton";
 import { EventTable } from "@/components/EventTable";
-import { isEventQuery, parseSavedHuntQuery } from "@/lib/hunt-input";
-import type { EventRow } from "@/lib/hunt-events-search";
+import { isEventQuery, parseSavedHuntQuery } from "@/lib/hunt/input";
+import type { EventRow } from "@/lib/hunt/events-search";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";

@@ -42,8 +42,8 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-import { verifyCronRequest } from "@/lib/cron-auth";
-import { flushDecoyReports, hashToken } from "@/lib/decoy";
+import { verifyCronRequest } from "@/lib/access/cron-auth";
+import { flushDecoyReports, hashToken } from "@/lib/ingest/decoy";
 import { prisma } from "@/lib/prisma";
 
 const request = (auth: string) =>

@@ -140,12 +140,12 @@ describe("agents/[agentId]/ring and corpus/finalize require the admin role (#837
 
 describe("isAdminRole", () => {
   it("is true for an owner or an admin, alone or among several comma-separated roles, with spaces", async () => {
-    const { isAdminRole } = await import("@/lib/admin-auth");
+    const { isAdminRole } = await import("@/lib/access/admin-auth");
     for (const role of ["owner", "admin", "member,admin", " owner , member"]) expect(isAdminRole(role)).toBe(true);
   });
 
   it("is false for a plain member, an unknown role, an empty one and no membership", async () => {
-    const { isAdminRole } = await import("@/lib/admin-auth");
+    const { isAdminRole } = await import("@/lib/access/admin-auth");
     for (const role of ["member", "administrator", "", null, undefined]) expect(isAdminRole(role)).toBe(false);
   });
 });

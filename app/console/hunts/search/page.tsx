@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { requireConsoleTenant } from "@/lib/console-session";
+import { requireConsoleTenant } from "@/lib/access/console-session";
 import { NoOrganization } from "@/components/NoOrganization";
-import { SEVERITIES } from "@/lib/hunt";
-import { CASE_STATUSES, MAX_CONCURRENT_SEARCHES_PER_TENANT, searchFailure, searchWithinLimit, type SearchPage } from "@/lib/hunt-search";
-import { searchFormFromParams, searchHref, searchRequestFromParams, type SearchParams } from "@/lib/hunt-search-form";
+import { SEVERITIES } from "@/lib/hunt/hunt";
+import { CASE_STATUSES, MAX_CONCURRENT_SEARCHES_PER_TENANT, searchFailure, searchWithinLimit, type SearchPage } from "@/lib/hunt/search";
+import { searchFormFromParams, searchHref, searchRequestFromParams, type SearchParams } from "@/lib/hunt/search-form";
 import { SearchResults } from "@/components/SearchResults";
 
 export const dynamic = "force-dynamic";

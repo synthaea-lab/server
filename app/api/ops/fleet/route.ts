@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireTenantMember } from "@/lib/admin-auth";
-import { loadFleet } from "@/lib/fleet";
+import { requireTenantMember } from "@/lib/access/admin-auth";
+import { loadFleet } from "@/lib/fleet/fleet";
 
 /**
  * GET /api/ops/fleet

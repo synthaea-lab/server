@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { access, mkdir, rename, rm, writeFile } from "fs/promises";
 import { randomUUID } from "crypto";
 import path from "path";
-import { artifactsDir } from "@/lib/storage-paths";
+import { artifactsDir } from "@/lib/content/storage-paths";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireTenantAdmin } from "@/lib/admin-auth";
-import { buildIocStage, MAX_STAGE_BODY_BYTES, type StagedArtifact } from "@/lib/ioc-stage";
+import { requireTenantAdmin } from "@/lib/access/admin-auth";
+import { buildIocStage, MAX_STAGE_BODY_BYTES, type StagedArtifact } from "@/lib/ioc/stage";
 
 const Kind = z.enum(["sha256", "ip", "domain"]);
 const Column = z.union([z.string().min(1).max(128), z.number().int().nonnegative()]);

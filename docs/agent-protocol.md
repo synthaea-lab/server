@@ -41,16 +41,16 @@ the proxy accepts but whose CN is not enrolled gets `403 Agent not enrolled` on 
 
 ### How a request is authenticated
 
-Every agent endpoint calls [`authenticateAgent`](../lib/agent-auth.ts) first:
+Every agent endpoint calls [`authenticateAgent`](../lib/access/agent-auth.ts) first:
 
 1. **Proxy secret.** `X-Proxy-Secret` must equal `NGINX_PROXY_SECRET`, compared in constant
-   time ([`verifyProxyAuth`](../lib/tenant.ts)). Without it the certificate headers below could
+   time ([`verifyProxyAuth`](../lib/access/tenant.ts)). Without it the certificate headers below could
    have been written by any client that reached the application port. `403` otherwise, and also
    when `NGINX_PROXY_SECRET` is unset.
 2. **Verified certificate.** nginx sets `X-Client-Cert-Verified` from `$ssl_client_verify` and
    `X-Client-Cert-Subject` from `$ssl_client_s_dn`, overwriting anything the client sent. The
    first must be `SUCCESS` and the second present: `401` otherwise.
-3. **Enrollment ID.** The CN is taken from the subject ([`extractEnrollmentId`](../lib/tenant.ts));
+3. **Enrollment ID.** The CN is taken from the subject ([`extractEnrollmentId`](../lib/access/tenant.ts));
    `400` if there is none.
 4. **Enrolled agent.** The `agents` row with that enrollment ID gives the agent's id, tenant and
    ring; `403 Agent not enrolled` if there is none.
@@ -114,11 +114,11 @@ with a string `type` is skipped and counted, not a reason to refuse the batch: o
 would otherwise make the agent retry the whole segment forever. For each accepted event the
 route:
 
-1. reads its time ([`eventTime`](../lib/event-time.ts)) and the observations prevalence counts
+1. reads its time ([`eventTime`](../lib/ingest/event-time.ts)) and the observations prevalence counts
    (file hash, image path, parent-child transition, domain;
-   [`extractObservations`](../lib/prevalence.ts));
+   [`extractObservations`](../lib/prevalence/prevalence.ts));
 2. with the telemetry archive on, queues the batch, each event as the exact text received, in
-   `lake_batches` ([`enqueueLakeBatch`](../lib/lake-writer.ts)). This step is not best effort: if
+   `lake_batches` ([`enqueueLakeBatch`](../lib/lake/writer.ts)). This step is not best effort: if
    it fails the route answers `500` and the agent keeps its segment;
 3. upserts the batch's prevalence sightings in one statement, best effort;
 4. updates `agents.last_seen` and the hourly ingest statistics, best effort.
@@ -130,7 +130,7 @@ event sent twice (a `2xx` lost on the way back, then a resend) is counted and ar
 ### Detections
 
 `POST /api/ingest/detection` takes one detection, in either of two wire formats validated by
-[`parseDetectionPayload`](../lib/detection-payload.ts):
+[`parseDetectionPayload`](../lib/ingest/detection-payload.ts):
 
 - **Structured** (current agents): the agent's `Detection` JSON with `timestamp_ns`, `severity`,
   `title`, `source` (one of the `rule`, `sigma`, `ml`, `correlator`, `yara` or `ioc` engines,
@@ -171,7 +171,7 @@ both best effort, and answers `{ "status": "accepted" }`. The detection has no c
 
 `POST /api/ingest/heartbeat` first updates `agents.last_seen`; that alone is the liveness signal
 the silent-agent job reads. It then tries to store the beacon in the body,
-`{ "agent_id": ..., "beacon": { ... } }`, validated by [`HealthBeacon`](../lib/health-beacon.ts):
+`{ "agent_id": ..., "beacon": { ... } }`, validated by [`HealthBeacon`](../lib/ingest/health-beacon.ts):
 agent version, per-sensor pulse counts and silence, spool size, loss counters, and the rarity,
 self-protection and IOC engine counters. Counters added after an agent was released default to
 zero, so an older agent's beacon is still stored.
@@ -179,11 +179,11 @@ zero, so an older agent's beacon is still stored.
 A missing or malformed beacon never fails the heartbeat. One row per agent in `agent_health`
 holds the latest beacon. A beacon older than the stored one is dropped. Loss is recognized as a
 loss counter (`spool_dropped` or `enrich_dropped`) rising between two beacons, stamped with the
-server's clock ([`nextLossObservedAt`](../lib/fleet-health.ts)); a counter that falls is an agent
+server's clock ([`nextLossObservedAt`](../lib/fleet/health.ts)); a counter that falls is an agent
 restart, not loss.
 
 The answer is `{ status: "ok", agentId, ring, lastSeen }`. From these rows
-[`fleetStatus`](../lib/fleet-health.ts) derives each agent's state on the operations page:
+[`fleetStatus`](../lib/fleet/health.ts) derives each agent's state on the operations page:
 
 | State | Meaning |
 | --- | --- |
@@ -207,7 +207,7 @@ The server never sees a token in clear and cannot issue one.
 
 The alarm side is on the bearer-authenticated routes: when a request to `/api/cron/*` presents a
 bearer that has the decoy shape and whose hash is registered,
-[`reportDecoyUse`](../lib/decoy.ts) records a `high` severity detection (technique `T1552.001`)
+[`reportDecoyUse`](../lib/ingest/decoy.ts) records a `high` severity detection (technique `T1552.001`)
 against each agent that planted it, naming the host and the address nginx saw. The check runs after the `401` is ready, so
 a decoy and any other wrong bearer take the same time to refuse, and alarms are limited to one per
 decoy and address per minute. See [Security model](security-model.md#decoy-credentials).
@@ -216,7 +216,7 @@ decoy and address per minute. See [Security model](security-model.md#decoy-crede
 
 Every request that identified an enrolled agent is counted in `ingest_stats`, per agent, kind
 (`events`, `detection`, `beacon`) and hour: items received, accepted and skipped, refusals by
-status, and the lag between event time and receipt ([`recordIngest`](../lib/ingest-stats.ts)).
+status, and the lag between event time and receipt ([`recordIngest`](../lib/ingest/stats.ts)).
 A refusal before the agent is known (bad proxy secret, no certificate, unknown CN) has no agent
 to count against. The operations console reads these rows; they are kept 14 days and pruned by
 the `prune-prevalence` job.

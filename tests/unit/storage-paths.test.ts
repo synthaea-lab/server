@@ -2,15 +2,15 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { keyRotationFile } from "@/lib/key-rotation";
-import { releaseArtifactFile } from "@/lib/release-manifest";
+import { keyRotationFile } from "@/lib/content/key-rotation";
+import { releaseArtifactFile } from "@/lib/content/release-manifest";
 import {
   artifactFile,
   artifactsDir,
   corpusExportDir,
   storagePath,
   storageRoot,
-} from "@/lib/storage-paths";
+} from "@/lib/content/storage-paths";
 
 const SHA = "a".repeat(64);
 

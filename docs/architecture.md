@@ -21,7 +21,7 @@ and the checks on each path in [Security model](security-model.md).
 | Proxy | nginx. Terminates TLS on port 8443, verifies agent client certificates, passes the verified subject and a shared secret to the application, and applies body-size and rate limits per path. | [`nginx.conf`](../nginx.conf) |
 | Application | One Next.js 14 application (App Router, TypeScript). Serves the agent endpoints, the console's API, the console pages and the scheduled-job routes. | [`app/`](../app), [`lib/`](../lib) |
 | Database | PostgreSQL 15, the system of record for every tenant, agent, detection, case, release and audit row. | [`prisma/schema.prisma`](../prisma/schema.prisma) |
-| Telemetry archive | Optional Parquet files on a local directory or an S3-compatible bucket, written by a scheduled job. | [`lib/lake-*.ts`](../lib/lake-store.ts) |
+| Telemetry archive | Optional Parquet files on a local directory or an S3-compatible bucket, written by a scheduled job. | [`lib/lake/`](../lib/lake) |
 
 There is no background worker process. Everything that is not a response to a request runs
 when an external scheduler calls one of the [scheduled-job routes](scheduled-jobs.md). The
@@ -37,7 +37,7 @@ Next.js compiles parts of the application for two runtimes:
 - **Edge.** [`middleware.ts`](../middleware.ts) runs on every `/api/*` and `/console/*` request
   before the route. The Edge runtime cannot load Prisma, so the middleware asks the
   application's own `/api/auth/get-session` route over the loopback to read a session
-  ([`lib/session-lookup.ts`](../lib/session-lookup.ts)).
+  ([`lib/access/session-lookup.ts`](../lib/access/session-lookup.ts)).
 - **Node.** Route handlers, server components and [`instrumentation.ts`](../instrumentation.ts),
   which runs once at start-up. It loads
   [`instrumentation-node.ts`](../instrumentation-node.ts) only on the Node runtime, which checks
@@ -62,16 +62,16 @@ flowchart LR
 
 | Caller | Credential | Checked by | Tenant comes from |
 | --- | --- | --- | --- |
-| Agent | mTLS client certificate whose common name is an enrolled agent's enrollment ID | nginx (certificate), then [`authenticateAgent`](../lib/agent-auth.ts) (proxy secret, verified subject, enrolled agent) | The agent row the certificate names |
-| Console user | better-auth session cookie with an active organization | [`middleware.ts`](../middleware.ts), then [`requireTenantMember`](../lib/admin-auth.ts) or [`requireTenantAdmin`](../lib/admin-auth.ts) in the route; [`requireConsoleTenant`](../lib/console-session.ts) in pages | The session's `activeOrganizationId` |
-| Scheduler | `Authorization: Bearer <CRON_SECRET>` | [`verifyCronRequest`](../lib/cron-auth.ts) | None: jobs iterate over every tenant |
+| Agent | mTLS client certificate whose common name is an enrolled agent's enrollment ID | nginx (certificate), then [`authenticateAgent`](../lib/access/agent-auth.ts) (proxy secret, verified subject, enrolled agent) | The agent row the certificate names |
+| Console user | better-auth session cookie with an active organization | [`middleware.ts`](../middleware.ts), then [`requireTenantMember`](../lib/access/admin-auth.ts) or [`requireTenantAdmin`](../lib/access/admin-auth.ts) in the route; [`requireConsoleTenant`](../lib/access/console-session.ts) in pages | The session's `activeOrganizationId` |
+| Scheduler | `Authorization: Bearer <CRON_SECRET>` | [`verifyCronRequest`](../lib/access/cron-auth.ts) | None: jobs iterate over every tenant |
 
 The middleware keeps a fixed list of public paths (agent ingest and downloads, `/api/auth`,
 `/api/health`, `/api/cron/*`, `/login`, `/`). On those it removes any client-supplied
 `x-tenant-id` and `x-user-id` and lets the route authenticate the caller itself. On every other
 matched path it looks up the session, redirects to `/login` without one, and otherwise sets those
 two headers from the session. Route handlers read the tenant only from them, through
-[`getTenantId`](../lib/tenant.ts), never from the request body.
+[`getTenantId`](../lib/access/tenant.ts), never from the request body.
 
 ## Code layout
 
@@ -80,7 +80,7 @@ two headers from the session. Route handlers read the tenant only from them, thr
 | [`app/api/`](../app/api) | Route handlers. One directory per resource; the path is the URL. |
 | [`app/console/`](../app/console), [`app/login/`](../app/login) | Console pages (React server components). |
 | [`components/`](../components) | Client components used by the console pages. |
-| [`lib/`](../lib) | Server logic. Most of it is pure functions over plain data, with the Prisma calls kept in thin store modules or in the route, so the logic is unit-testable without a database. |
+| [`lib/`](../lib) | Server logic, one folder per area: `access/` (who may call what), `ingest/`, `cases/`, `fleet/`, `prevalence/`, `hunt/`, `content/` (manifests, releases, rings), `ioc/`, `lake/` (the telemetry archive), `notify/`, plus `http/` and `cron/` helpers. `auth.ts`, `prisma.ts`, `env.ts`, `audit.ts` and `graph.ts` stay at the top. Most of it is pure functions over plain data, with the Prisma calls kept in thin store modules or in the route, so the logic is unit-testable without a database. It never imports from `app/` or `components/` (a lint rule). |
 | [`assistant/`](../assistant) | The case-narrative evidence graph, prompt and LLM client. |
 | [`prisma/schema.prisma`](../prisma/schema.prisma) | The database schema, including the better-auth tables. |
 | [`middleware.ts`](../middleware.ts) | Session check and identity headers. |
@@ -101,17 +101,17 @@ that implement it; the module note has the design and status.
 
 | Area | What it does | Routes | Library | Note |
 | --- | --- | --- | --- | --- |
-| Ingest | Accepts events, detections, heartbeats and decoy registrations from enrolled agents | `app/api/ingest/*`, `app/api/v1/ingest/*` | [`detection-payload.ts`](../lib/detection-payload.ts), [`health-beacon.ts`](../lib/health-beacon.ts), [`ingest-stats.ts`](../lib/ingest-stats.ts), [`decoy.ts`](../lib/decoy.ts) | [ingest](../ingest/README.md) |
-| Cases | Groups one host's detections into cases; opens a case for a silent agent | `app/api/cases/*`, `app/api/cron/group-detections`, `app/api/cron/detect-silent-agents` | [`case-grouping.ts`](../lib/case-grouping.ts), [`case-grouping-store.ts`](../lib/case-grouping-store.ts), [`silent-agent-case.ts`](../lib/silent-agent-case.ts), [`case-detail.ts`](../lib/case-detail.ts) | [assistant](../assistant/README.md) |
-| Fleet correlation | Joins cases of several hosts that share a file hash or a signed-in identity into fleet cases | `app/api/fleet-cases/*`, `app/api/cron/join-fleet-cases` | [`fleet-case.ts`](../lib/fleet-case.ts), [`fleet-case-store.ts`](../lib/fleet-case-store.ts), [`fleet-case-load.ts`](../lib/fleet-case-load.ts) | [fleet](../fleet/README.md) |
-| Prevalence | Per-tenant first-seen, last-seen and host counts for hashes, paths, parent-child pairs and domains; the signed common-set snapshot | `app/api/prevalence`, `app/api/snapshot/*`, `app/api/cron/prune-prevalence`, `app/api/cron/build-snapshots` | [`prevalence.ts`](../lib/prevalence.ts), [`common-set-snapshot.ts`](../lib/common-set-snapshot.ts), [`snapshot-publish.ts`](../lib/snapshot-publish.ts) | [prevalence](../prevalence/README.md) |
+| Ingest | Accepts events, detections, heartbeats and decoy registrations from enrolled agents | `app/api/ingest/*`, `app/api/v1/ingest/*` | [`detection-payload.ts`](../lib/ingest/detection-payload.ts), [`health-beacon.ts`](../lib/ingest/health-beacon.ts), [`ingest-stats.ts`](../lib/ingest/stats.ts), [`decoy.ts`](../lib/ingest/decoy.ts) | [ingest](../ingest/README.md) |
+| Cases | Groups one host's detections into cases; opens a case for a silent agent | `app/api/cases/*`, `app/api/cron/group-detections`, `app/api/cron/detect-silent-agents` | [`case-grouping.ts`](../lib/cases/grouping.ts), [`case-grouping-store.ts`](../lib/cases/grouping-store.ts), [`silent-agent-case.ts`](../lib/cases/silent-agent-case.ts), [`case-detail.ts`](../lib/cases/detail.ts) | [assistant](../assistant/README.md) |
+| Fleet correlation | Joins cases of several hosts that share a file hash or a signed-in identity into fleet cases | `app/api/fleet-cases/*`, `app/api/cron/join-fleet-cases` | [`fleet-case.ts`](../lib/cases/fleet-case.ts), [`fleet-case-store.ts`](../lib/cases/fleet-case-store.ts), [`fleet-case-load.ts`](../lib/cases/fleet-case-load.ts) | [fleet](../fleet/README.md) |
+| Prevalence | Per-tenant first-seen, last-seen and host counts for hashes, paths, parent-child pairs and domains; the signed common-set snapshot | `app/api/prevalence`, `app/api/snapshot/*`, `app/api/cron/prune-prevalence`, `app/api/cron/build-snapshots` | [`prevalence.ts`](../lib/prevalence/prevalence.ts), [`common-set-snapshot.ts`](../lib/content/common-set-snapshot.ts), [`snapshot-publish.ts`](../lib/content/snapshot-publish.ts) | [prevalence](../prevalence/README.md) |
 | Entity graph | A case's subgraph and pivots from a hash, path or domain to every host that showed it, computed on read | `app/api/cases/[id]/graph`, `app/api/graph/pivot` | [`graph.ts`](../lib/graph.ts) | [graph](../graph/README.md) |
-| Hunting | Saved and scheduled hunts, ad-hoc search over detections, cases and the archive, drafts of Sigma rules and IOC sets | `app/api/hunts/*`, `app/api/cron/run-hunts` | [`hunt.ts`](../lib/hunt.ts), [`hunt-search.ts`](../lib/hunt-search.ts), [`hunt-runner.ts`](../lib/hunt-runner.ts), [`hunt-graduation.ts`](../lib/hunt-graduation.ts) | [hunt](../hunt/README.md) |
-| Telemetry archive | Queues accepted event batches and writes them as Parquet, with per-tenant retention and audited deletion | `app/api/cron/write-lake`, `app/api/cron/prune-lake` | [`lake-writer.ts`](../lib/lake-writer.ts), [`lake-store.ts`](../lib/lake-store.ts), [`lake-s3-store.ts`](../lib/lake-s3-store.ts), [`lake-retention.ts`](../lib/lake-retention.ts), [`lake-query.ts`](../lib/lake-query.ts) | [datalake](../datalake/README.md) |
-| Fleet operations | Agent and ingest health, ring status, ring assignment, halt and rollback | `app/api/ops/*`, `app/api/rings/*`, `app/api/agents/*`, `app/api/content/*`, `app/api/release/*` | [`fleet-health.ts`](../lib/fleet-health.ts), [`rings.ts`](../lib/rings.ts), [`ring-actions.ts`](../lib/ring-actions.ts), [`release-publish.ts`](../lib/release-publish.ts) | [ops](../ops/README.md), [Content and releases](content-and-releases.md) |
-| Assistant | LLM-written case narratives over an allowlisted evidence graph, with citations checked against the case | `app/api/cases/[id]/narrative/regenerate` | [`assistant/`](../assistant), [`case-narrative.ts`](../lib/case-narrative.ts) | [assistant](../assistant/README.md) |
+| Hunting | Saved and scheduled hunts, ad-hoc search over detections, cases and the archive, drafts of Sigma rules and IOC sets | `app/api/hunts/*`, `app/api/cron/run-hunts` | [`hunt.ts`](../lib/hunt/hunt.ts), [`hunt-search.ts`](../lib/hunt/search.ts), [`hunt-runner.ts`](../lib/hunt/runner.ts), [`hunt-graduation.ts`](../lib/hunt/graduation.ts) | [hunt](../hunt/README.md) |
+| Telemetry archive | Queues accepted event batches and writes them as Parquet, with per-tenant retention and audited deletion | `app/api/cron/write-lake`, `app/api/cron/prune-lake` | [`lake-writer.ts`](../lib/lake/writer.ts), [`lake-store.ts`](../lib/lake/store.ts), [`lake-s3-store.ts`](../lib/lake/s3-store.ts), [`lake-retention.ts`](../lib/lake/retention.ts), [`lake-query.ts`](../lib/lake/query.ts) | [datalake](../datalake/README.md) |
+| Fleet operations | Agent and ingest health, ring status, ring assignment, halt and rollback | `app/api/ops/*`, `app/api/rings/*`, `app/api/agents/*`, `app/api/content/*`, `app/api/release/*` | [`fleet-health.ts`](../lib/fleet/health.ts), [`rings.ts`](../lib/content/rings.ts), [`ring-actions.ts`](../lib/content/ring-actions.ts), [`release-publish.ts`](../lib/content/release-publish.ts) | [ops](../ops/README.md), [Content and releases](content-and-releases.md) |
+| Assistant | LLM-written case narratives over an allowlisted evidence graph, with citations checked against the case | `app/api/cases/[id]/narrative/regenerate` | [`assistant/`](../assistant), [`case-narrative.ts`](../lib/cases/narrative.ts) | [assistant](../assistant/README.md) |
 | Integrations | Signed webhooks for host health changes and new hunt matches, through an outbox | `app/api/notify/*`, `app/api/cron/deliver-notifications` | [`lib/notify/`](../lib/notify) | [integrations](../integrations/README.md) |
-| Tenancy | Tenant provisioning, the tenant–organization pairing, roles | `app/api/admin/tenants`, `app/api/auth/*` | [`tenant-provisioning.ts`](../lib/tenant-provisioning.ts), [`auth.ts`](../lib/auth.ts), [`admin-auth.ts`](../lib/admin-auth.ts) | [Security model](security-model.md) |
+| Tenancy | Tenant provisioning, the tenant–organization pairing, roles | `app/api/admin/tenants`, `app/api/auth/*` | [`tenant-provisioning.ts`](../lib/access/tenant-provisioning.ts), [`auth.ts`](../lib/auth.ts), [`admin-auth.ts`](../lib/access/admin-auth.ts) | [Security model](security-model.md) |
 
 Three areas are planned and have notes but no code yet:
 [cloud-side detection](../cloud-detection/README.md), the
@@ -131,7 +131,7 @@ that loses the race rolls back and answers 409, so the export holds every sample
 The claim stamps `corpus_versions.finalizing_since`. If the process dies between the claim
 and the `finalized` write (restart, SIGTERM, OOM while loading the samples), the version stays
 `finalizing` and submits answer 409. Recovery is automatic: a finalize call on a version whose
-claim is older than 30 minutes (`FINALIZE_STALE_AFTER_MS` in `lib/corpus.ts`), or has no stamp,
+claim is older than 30 minutes (`FINALIZE_STALE_AFTER_MS` in `lib/ingest/corpus.ts`), or has no stamp,
 takes the claim over and exports again. A younger claim answers 409 "finalize in progress". If
 the old process was only slow, it finds its claim gone before it writes `finalized` and stops.
 To reopen by hand instead:
@@ -164,9 +164,9 @@ flowchart TD
   dropped.
 - **Detections** are stored as they arrive, with no case. `group-detections` later assigns each
   ungrouped detection to a case of the same agent: same or related ATT&CK technique within 30
-  minutes ([`case-grouping.ts`](../lib/case-grouping.ts)). `join-fleet-cases` then links
+  minutes ([`case-grouping.ts`](../lib/cases/grouping.ts)). `join-fleet-cases` then links
   detections of different agents that share an executed file hash or a non-generic identity
-  within 24 hours into one fleet case ([`fleet-case.ts`](../lib/fleet-case.ts)).
+  within 24 hours into one fleet case ([`fleet-case.ts`](../lib/cases/fleet-case.ts)).
 - **Heartbeats** refresh `agents.last_seen` and store the latest health beacon. An agent with no
   heartbeat for five minutes is silent: `detect-silent-agents` opens one case for it, and the
   notification job tells the tenant's webhooks.

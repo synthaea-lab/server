@@ -22,7 +22,7 @@ npx prisma generate
 | Path | Contents |
 | --- | --- |
 | `app/` | Next.js App Router: API routes under `app/api/`, console pages under `app/console/` |
-| `lib/` | Server logic, most of it pure functions the routes call |
+| `lib/` | Server logic, one folder per area (`ingest/`, `cases/`, `hunt/`, `lake/`, …), most of it pure functions the routes call |
 | `components/` | React components of the console |
 | `prisma/schema.prisma` | The database schema |
 | `middleware.ts` | Session check and tenant context for protected routes |
@@ -56,18 +56,18 @@ repositories, and the helpers.
 ## Conventions
 
 - **Tenancy.** Every query a route runs is scoped to the caller's tenant. A route reads the
-  tenant from the context the middleware set (`getTenantId` in `lib/tenant.ts`), never from the
+  tenant from the context the middleware set (`getTenantId` in `lib/access/tenant.ts`), never from the
   request body. `tests/integration/tenancy.test.ts` checks isolation across routes; extend it when
   you add one.
 - **Agent and console identities stay separate.** Agent routes authenticate with the mTLS
-  certificate passed by the proxy (`lib/agent-auth.ts`); console routes with a better-auth
+  certificate passed by the proxy (`lib/access/agent-auth.ts`); console routes with a better-auth
   session. The two never mix.
 - **Middleware runs on the Edge runtime.** `middleware.ts` cannot import Prisma or `lib/auth.ts`;
-  it asks `/api/auth/get-session` over the loopback (`lib/session-lookup.ts`), which fails closed.
+  it asks `/api/auth/get-session` over the loopback (`lib/access/session-lookup.ts`), which fails closed.
   Server components and route handlers run on Node and call `auth.api.getSession` with the request
   headers.
 - **Tenants and organizations share an id.** A session's `activeOrganizationId` is the tenant id.
-  Tenants are created only through `provisionTenant` (`lib/tenant-provisioning.ts`), which creates
+  Tenants are created only through `provisionTenant` (`lib/access/tenant-provisioning.ts`), which creates
   both rows together; better-auth's own organization creation and deletion are disabled.
 - **Schema changes.** The schema is applied with `prisma db push`; there are no migration files.
   The better-auth tables are Prisma models, and an integration test fails if a better-auth upgrade

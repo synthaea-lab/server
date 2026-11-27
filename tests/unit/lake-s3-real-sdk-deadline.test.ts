@@ -2,8 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo, Socket } from "node:net";
 import { S3Client } from "@aws-sdk/client-s3";
-import { S3LakeReader } from "@/lib/lake-s3-store";
-import { searchFailure } from "@/lib/hunt-search";
+import { S3LakeReader } from "@/lib/lake/s3-store";
+import { searchFailure } from "@/lib/hunt/search";
 
 /**
  * The search deadline against the real AWS SDK, not a fake client (PR #1113 review): a local server

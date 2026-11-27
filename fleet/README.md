@@ -14,6 +14,6 @@ a computed set of related hosts (same subnet, same identity, recent lateral peer
 policy overlay: lower model thresholds, wider telemetry, a shorter heartbeat interval. A posture
 only ever heightens, never disables, and expires on its own, enforced by the server.
 
-Code: `lib/fleet-case.ts`, `lib/fleet-case-store.ts`, `app/api/cron/join-fleet-cases/`, `app/api/fleet-cases/`,
+Code: `lib/cases/fleet-case.ts`, `lib/cases/fleet-case-store.ts`, `app/api/cron/join-fleet-cases/`, `app/api/fleet-cases/`,
 `app/console/fleet-cases/`. Tests: `tests/unit/fleet-case.test.ts`,
 `tests/integration/join-fleet-cases-cron.test.ts`, `fleet-cases-console.test.ts`.

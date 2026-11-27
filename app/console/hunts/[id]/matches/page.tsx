@@ -1,14 +1,14 @@
 import { prisma } from "@/lib/prisma";
-import { requireConsoleTenant } from "@/lib/console-session";
+import { requireConsoleTenant } from "@/lib/access/console-session";
 import { NoOrganization } from "@/components/NoOrganization";
-import { HuntValidationError } from "@/lib/hunt";
-import { isEventQuery, parseSavedHuntQuery } from "@/lib/hunt-input";
-import { searchEventsWithinLimit, type EventPage } from "@/lib/hunt-events-search";
-import { eventArchiveFromEnv } from "@/lib/lake-env";
+import { HuntValidationError } from "@/lib/hunt/hunt";
+import { isEventQuery, parseSavedHuntQuery } from "@/lib/hunt/input";
+import { searchEventsWithinLimit, type EventPage } from "@/lib/hunt/events-search";
+import { eventArchiveFromEnv } from "@/lib/lake/env";
 import { EventTable } from "@/components/EventTable";
-import { MAX_CONCURRENT_SEARCHES_PER_TENANT, searchFailure, searchWithinLimit, type SearchPage } from "@/lib/hunt-search";
-import { describeQuery } from "@/lib/hunt-view";
-import { searchHref, type SearchParams } from "@/lib/hunt-search-form";
+import { MAX_CONCURRENT_SEARCHES_PER_TENANT, searchFailure, searchWithinLimit, type SearchPage } from "@/lib/hunt/search";
+import { describeQuery } from "@/lib/hunt/view";
+import { searchHref, type SearchParams } from "@/lib/hunt/search-form";
 import { SearchResults } from "@/components/SearchResults";
 import { notFound } from "next/navigation";
 

@@ -5,7 +5,7 @@ import {
   prevalenceKey,
   prunePrevalence,
   recordObservations,
-} from "@/lib/prevalence";
+} from "@/lib/prevalence/prevalence";
 
 const day = (d: number) => new Date(Date.UTC(2026, 8, d));
 const domain = (n: number) => ({ kind: "domain" as const, key: `d${n}.example` });

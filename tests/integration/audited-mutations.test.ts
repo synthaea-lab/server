@@ -19,10 +19,10 @@ vi.mock("@/lib/audit", async (importOriginal) => {
 
 // The publish routes check the manifest and artifacts in storage first; that is not what these
 // tests are about, so both checks pass.
-vi.mock("@/lib/content-publish", () => ({
+vi.mock("@/lib/content/publish", () => ({
   validatePublishable: async () => ({ ok: true, manifest: { entries: [{}] } }),
 }));
-vi.mock("@/lib/release-manifest", () => ({
+vi.mock("@/lib/content/release-manifest", () => ({
   loadReleaseManifest: async () => ({ ok: true, manifest: { entries: { agent: "0".repeat(64) } } }),
   loadReleaseArtifact: async () => ({ ok: true }),
 }));

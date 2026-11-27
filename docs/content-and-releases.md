@@ -20,10 +20,10 @@ agent endpoint takes a ring the agent could choose: the release, key-rotation an
 routes have no ring in the path, and the content manifest route, which does, answers `403` when
 the ring is not the agent's own.
 
-`GET /api/ops/rings` ([`loadRings`](../lib/rings.ts)) reports for each ring its rollout state
+`GET /api/ops/rings` ([`loadRings`](../lib/content/rings.ts)) reports for each ring its rollout state
 (`serving`, `halted`, `rolled_back` or `no_release`), the newest and the served version, whether
 a rollback has somewhere to go, and the health of the agents in it. The operations console shows
-it and offers halt and rollback where they apply ([`ring-actions.ts`](../lib/ring-actions.ts)).
+it and offers halt and rollback where they apply ([`ring-actions.ts`](../lib/content/ring-actions.ts)).
 
 ## The artifact store
 
@@ -39,12 +39,12 @@ Release files live on the application's file system, under `storage/` in its wor
 
 A release row's `manifestUrl` is either `storage://<path>`, read from that directory with `..`
 and absolute paths refused, or any other URL, which is fetched as-is
-([`loadManifestBytes`](../lib/content-manifest.ts)). Artifacts are always read from the local
+([`loadManifestBytes`](../lib/content/manifest.ts)). Artifacts are always read from the local
 store.
 
 The content store is content-addressed, so the same bytes are stored once whatever path the
 manifests give them, and a release's bytes stay available as long as any release lists them. The
-`prune-artifacts` job ([`content-retention.ts`](../lib/content-retention.ts)) deletes files that
+`prune-artifacts` job ([`content-retention.ts`](../lib/content/retention.ts)) deletes files that
 no content release of any tenant, ring or status lists, keeps files younger than 24 hours (an
 artifact is uploaded before the release that lists it), and deletes nothing if any manifest cannot
 be read.
@@ -54,7 +54,7 @@ a path its own active manifest lists (see below).
 
 ## Content releases
 
-A content manifest ([`ContentManifest`](../lib/content-manifest.ts)) is signed JSON:
+A content manifest ([`ContentManifest`](../lib/content/manifest.ts)) is signed JSON:
 
 ```json
 {
@@ -71,7 +71,7 @@ A content manifest ([`ContentManifest`](../lib/content-manifest.ts)) is signed J
 
 Entry types are `rule`, `model`, `policy` and `ioc`. The signature covers the canonical bytes:
 two-space indented JSON with keys sorted at every level and `signature` present but empty
-([`canonicalJSON`](../lib/content-manifest.ts)). The agent's updater uses the same scheme, and
+([`canonicalJSON`](../lib/content/manifest.ts)). The agent's updater uses the same scheme, and
 both sides test against [`tests/fixtures/content-manifest-golden.json`](../tests/fixtures/content-manifest-golden.json).
 
 ### Publishing
@@ -83,17 +83,17 @@ both sides test against [`tests/fixtures/content-manifest-golden.json`](../tests
 3. `POST /api/content/release` with `{ ring, manifestUrl, manifestSha256, releasedAt?, restoresVersion? }`
    as a tenant `owner` or `admin` ([route](../app/api/content/release/route.ts)).
 
-[`publishRelease`](../lib/release-publish.ts) numbers the release and refuses it with `422`
+[`publishRelease`](../lib/content/release-publish.ts) numbers the release and refuses it with `422`
 unless everything an agent would check at install time already holds: the manifest bytes hash to
 `manifestSha256`, the manifest matches the schema with at least one entry, names this ring and
 carries this number, every entry path is a safe relative path, every artifact is in the store and
 hashes to its listed value, and every `ioc` entry is a feed the device would load whole
-([`validatePublishable`](../lib/content-publish.ts)). The row and its `content.release.create` audit
+([`validatePublishable`](../lib/content/publish.ts)). The row and its `content.release.create` audit
 entry are written in one transaction. The signature is not checked: the server has no key.
 
 ### Serving
 
-[`loadActiveManifest`](../lib/active-content-manifest.ts) decides what an agent is offered: the
+[`loadActiveManifest`](../lib/content/active-manifest.ts) decides what an agent is offered: the
 newest `active` release of its tenant and ring. Before serving it re-reads the manifest, checks
 its SHA-256 against the row, its schema, and its ring and version against the row; any mismatch
 is a `502`, never a different manifest.
@@ -111,7 +111,7 @@ is a `502`, never a different manifest.
   or rolling back ends it.
 - **Rollback.** `POST /api/content/rollback` with `{ ring, targetVersion?, reason? }` marks the
   newest active or halted release `rolled_back` and reactivates `targetVersion`, or the release
-  just below it ([`findRollbackReleases`](../lib/content-rollback.ts)). This only reaches agents
+  just below it ([`findRollbackReleases`](../lib/content/rollback.ts)). This only reaches agents
   that have not applied the rolled-back release: an agent never moves to a lower release number.
   The answer therefore includes a corrective-release advice: the number the next release will
   get and the version whose content it should carry. Withdrawing the content from agents that
@@ -133,7 +133,7 @@ advisory lock, and audited. The console's buttons call the same routes.
 ### IOC feeds
 
 `POST /api/content/ioc-feed` ([route](../app/api/content/ioc-feed/route.ts),
-[`ioc-stage.ts`](../lib/ioc-stage.ts)) turns a threat-intelligence source into IOC feed artifacts:
+[`ioc-stage.ts`](../lib/ioc/stage.ts)) turns a threat-intelligence source into IOC feed artifacts:
 plain `kind:value` text, CSV with a column mapping, a MISP export (attributes flagged `to_ids`)
 or a STIX 2.1 bundle (single-comparison indicator patterns, expired ones dropped). It builds the
 feed with the same rules the device applies, drops lines the device would skip, refuses a
@@ -148,7 +148,7 @@ may be up to 32 MiB; nginx allows the same on this route.
 ## Binary releases
 
 A binary release offers a new agent version to a ring. Its manifest
-([`ReleaseManifest`](../lib/release-manifest.ts)) has no ring and maps each file path to its
+([`ReleaseManifest`](../lib/content/release-manifest.ts)) has no ring and maps each file path to its
 SHA-256:
 
 ```json
@@ -171,7 +171,7 @@ SHA-256:
 An operator replaces the `release` or `content` public key agents trust by placing a rotation
 manifest, signed offline by the `recovery` key, at `storage/key-rotations/<ring>.json`.
 `GET /api/release/key-rotation` serves the file for the agent's ring byte for byte, or `404` when
-there is none ([`key-rotation.ts`](../lib/key-rotation.ts)). The server checks only the shape: a
+there is none ([`key-rotation.ts`](../lib/content/key-rotation.ts)). The server checks only the shape: a
 strict schema (unknown fields would fall outside the signed bytes), retired and new key given in
 pairs, at least one key rotated, a validity of at most 30 days. Agents check the signature, that
 the rotation retires the key they trust now, the expiry, and that it is newer than any they
@@ -182,16 +182,16 @@ applied. One file per ring lets a rotation reach canaries before `prod`.
 The common-set snapshot gives each agent its tenant's "commonly seen" file hashes as a signed
 Bloom filter, a weak rarity signal it can use offline.
 
-- **Build.** The `build-snapshots` job ([`snapshot-publish.ts`](../lib/snapshot-publish.ts))
+- **Build.** The `build-snapshots` job ([`snapshot-publish.ts`](../lib/content/snapshot-publish.ts))
   takes, per tenant, the hashes seen on at least `SNAPSHOT_MIN_HOSTS` hosts (default 2) from the
-  prevalence table, builds the filter ([`common-set-snapshot.ts`](../lib/common-set-snapshot.ts)),
+  prevalence table, builds the filter ([`common-set-snapshot.ts`](../lib/content/common-set-snapshot.ts)),
   signs the manifest and replaces the tenant's `common_set_snapshots` row. A build is skipped,
   keeping the previous snapshot, when too few hosts have reported, when there are more hashes than
   the entry cap, when the artifact would exceed its size cap, or when it has fewer than half the
   previous build's entries without a fall in hosts covered (a truncated build). The [configuration](configuration.md#prevalence-and-snapshots) lists
   the tuning variables.
 - **Sign.** Signing goes through a `SnapshotSigner` that holds the `snapshot` key
-  ([`snapshot-manifest.ts`](../lib/snapshot-manifest.ts)). The only signer today is the public
+  ([`snapshot-manifest.ts`](../lib/content/snapshot-manifest.ts)). The only signer today is the public
   test key, enabled with `SYNTHAEA_SNAPSHOT_SIGNER=test` for lab use. Without a signer the job
   answers `503` and nothing is served.
 - **Serve.** `GET /api/snapshot/manifest` answers the agent's own tenant's signed manifest, `404`

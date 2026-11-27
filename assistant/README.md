@@ -22,5 +22,5 @@ Planned:
 
 Tenant data never trains shared models.
 
-Code: this directory, `app/api/cases/[id]/narrative/`, `lib/case-grouping.ts`. Tests:
+Code: this directory, `app/api/cases/[id]/narrative/`, `lib/cases/grouping.ts`. Tests:
 `tests/integration/case-narrative-regenerate.test.ts`, `group-detections-cron.test.ts`.

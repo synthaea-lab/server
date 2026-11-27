@@ -8,7 +8,7 @@ import {
   normalizeAddress,
   normalizeDomain,
   versionFile,
-} from "@/lib/ioc-feed";
+} from "@/lib/ioc/feed";
 
 const HASH = "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f";
 const suffixes = new Set(["com", "co.uk", "blogspot.com"]);
