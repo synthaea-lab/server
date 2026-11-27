@@ -1,4 +1,4 @@
-import type { PrevalenceKind } from "@/lib/prevalence";
+import type { PrevalenceKind } from "@/lib/prevalence/prevalence";
 
 /**
  * Fleet entity graph (issue #72): hosts, processes, files (by hash or path),
@@ -6,7 +6,7 @@ import type { PrevalenceKind } from "@/lib/prevalence";
  *
  * Scope, stated plainly: there is no raw-telemetry store yet (`server/datalake`,
  * issue #77) — an ingested event that triggers no rule is counted into fleet
- * prevalence (`lib/prevalence.ts`) and then dropped. So this graph is built from
+ * prevalence (`lib/prevalence/prevalence.ts`) and then dropped. So this graph is built from
  * the two durable sources that actually exist:
  * - `Detection.event`: a full normalized event, but only for what fired a rule —
  *   enough to render one case's subgraph (a case has few detections).
@@ -55,7 +55,7 @@ function edgeId(edge: Pick<GraphEdge, "kind" | "from" | "to">): string {
   return `${edge.kind}\u0000${nodeId(edge.from)}\u0000${nodeId(edge.to)}`;
 }
 
-/** Windows paths compare case-insensitively; mirrors `lib/prevalence.ts`. */
+/** Windows paths compare case-insensitively; mirrors `lib/prevalence/prevalence.ts`. */
 const WINDOWS_PATH = /^([a-z]:\\|\\\\)/i;
 function normalizePath(path: string): string {
   return WINDOWS_PATH.test(path) ? path.toLowerCase() : path;
@@ -85,7 +85,7 @@ function fileKey(sha256: unknown, path: unknown): NodeRef | null {
 
 /**
  * Graph facts implied by one event on one host. Pure and tolerant, same
- * discipline as `lib/prevalence.ts`'s `extractObservations`: an event of a
+ * discipline as `lib/prevalence/prevalence.ts`'s `extractObservations`: an event of a
  * shape this does not recognize yields nothing, never an error — this runs
  * on an attacker-influenced `Detection.event` after the event is already
  * stored.
@@ -264,7 +264,7 @@ export type PivotKind = Exclude<PrevalenceKind, "transition">;
  * subgraph (`path` is what `extractGraphFacts`/`fileKey` actually key files
  * by; `sha256:`/`path:` are the only two file-key shapes anywhere in this
  * module). `transition` is excluded by [`PivotKind`]: its key is a
- * `"parent -> child"` pair (`lib/prevalence.ts`), not one entity, so there is
+ * `"parent -> child"` pair (`lib/prevalence/prevalence.ts`), not one entity, so there is
  * no single node it could legitimately become.
  */
 export function hashPivot(
