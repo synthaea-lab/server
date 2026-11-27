@@ -124,15 +124,29 @@ describe("GET /api/cases/[id]", () => {
     const agent = await createTestAgent(tenant.id);
     const case_ = await createTestCase(tenant.id);
 
+    // Explicit times, far apart (review, Sollykhan): the detection was ingested and last changed a
+    // minute ago, the narrative was generated 30 s ago, and only the grouping write below may move
+    // `updatedAt` past it. With `generatedAt` near the detection's own write, the test passed
+    // whether or not grouping bumped `updatedAt`, and whether staleness read `updatedAt` or
+    // `createdAt`.
+    const now = Date.now();
+    const ingestedAt = new Date(now - 60_000);
+    const generatedAt = new Date(now - 30_000);
+
     // Detection exists, ungrouped, before the narrative is generated.
     const detection = await createTestDetection(tenant.id, agent.id, { caseId: null });
-    // A second back, not `new Date()`: see NARRATIVE_CLOCK_MARGIN_MS.
-    await createTestCaseNarrative(tenant.id, case_.id, {
-      generatedAt: new Date(Date.now() - NARRATIVE_CLOCK_MARGIN_MS),
+    await prisma.detection.update({
+      where: { id: detection.id },
+      data: { createdAt: ingestedAt, updatedAt: ingestedAt },
     });
+    await createTestCaseNarrative(tenant.id, case_.id, { generatedAt });
+    const beforeGrouping = await prisma.detection.findUniqueOrThrow({ where: { id: detection.id } });
+    expect(beforeGrouping.updatedAt.getTime()).toBeLessThan(generatedAt.getTime());
 
     // Only grouped into the case afterwards, e.g. by the cron sweep.
     await prisma.detection.update({ where: { id: detection.id }, data: { caseId: case_.id } });
+    const afterGrouping = await prisma.detection.findUniqueOrThrow({ where: { id: detection.id } });
+    expect(afterGrouping.updatedAt.getTime()).toBeGreaterThan(generatedAt.getTime());
 
     const res = await GET(request(tenant.id), { params: { id: case_.id } });
     const body = await res.json();
