@@ -2,16 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* The console is light-only: every page paints white or gray-50 surfaces. A dark scheme here made
+   inherited text near-white on them (login heading and inputs, console header). */
 :root {
+  color-scheme: light;
   --background: #ffffff;
   --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
