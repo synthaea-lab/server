@@ -53,6 +53,18 @@ describe("queryLake", () => {
     expect(r).toMatchObject({ truncated: false, filesMatched: 3, filesRead: 3, filesSkipped: 0 });
   });
 
+  it("lists the event types that have files in the range, and not the ones asked for that have none", async () => {
+    await put(T1, "2026-10-29", "exec", "a", [row("a1", at("2026-10-29", "01:00:00"), "exec")]);
+    await put(T1, "2026-10-29", "dns_query", "a", [row("a1", at("2026-10-29", "02:00:00"), "dns_query")]);
+    await put(T1, "2026-10-29", "connect", "a", [row("a1", at("2026-10-29", "03:00:00"), "connect")]);
+
+    const q = { tenantId: T1, from: "2026-10-29", to: "2026-10-29" };
+    expect((await queryLake(store, q)).typesFound).toEqual(["connect", "dns_query", "exec"]);
+    expect((await queryLake(store, { ...q, types: ["exec", "dns"] })).typesFound).toEqual(["exec"]);
+    expect((await queryLake(store, { ...q, types: ["dns"] })).typesFound).toEqual([]);
+    expect((await queryLake(store, { ...q, from: "2026-10-30", to: "2026-10-30" })).typesFound).toEqual([]);
+  });
+
   it("prunes by event type from the path and filters on typed columns", async () => {
     await put(T1, "2026-10-29", "exec", "a", [
       row("a1", at("2026-10-29", "01:00:00"), "exec", { image_path: "/usr/bin/curl", sha256: HASH.toUpperCase() }),
@@ -242,6 +254,7 @@ describe("queryLake", () => {
       filesRead: 0,
       filesSkipped: 0,
       listingTruncated: false,
+      typesFound: [],
     });
   });
 

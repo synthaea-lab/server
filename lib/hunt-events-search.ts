@@ -52,6 +52,13 @@ export type EventPage = {
   /** The days searched, `YYYY-MM-DD`, both included. */
   from: string;
   to: string;
+  /**
+   * Event types the query named that have no file in the window: the archive never saw them in these
+   * days, which usually means a misspelt type (`dns` for `dns_query`), not a quiet host. Absent when
+   * every named type has files, when the query named none, and when the listing was cut (the list
+   * would be a guess).
+   */
+  unknownTypes?: string[];
 };
 
 export type EventSearchOutcome = { status: "ok"; page: EventPage } | { status: "busy" } | { status: "lake_off" } | { status: "no_reader" };
@@ -126,6 +133,11 @@ export async function searchEventsWithinLimit(
         to,
         rows: result.rows.map(toEventRow),
       };
+      if (query.types !== undefined && !result.listingTruncated) {
+        const found = new Set(result.typesFound);
+        const unknown = query.types.filter((t) => !found.has(t));
+        if (unknown.length > 0) page.unknownTypes = unknown;
+      }
       return { status: "ok", page } as const;
     },
     { timeout: timeoutMs + (HUNT_TRANSACTION_TIMEOUT_MS - HUNT_STATEMENT_TIMEOUT_MS) }
