@@ -1,9 +1,10 @@
-import type { PrismaClient } from "@prisma/client";
+import type { AgentHealth, PrismaClient } from "@prisma/client";
 import {
   fleetStatus,
   lostRecently,
   sensorsOf,
   type EtwShedding,
+  type RingLoss,
   type FleetStatus,
   type SensorState,
 } from "@/lib/fleet-health";
@@ -45,6 +46,8 @@ export type FleetAgent = {
     alertsDropped: number;
     /** What the Windows ETW sensor's caches shed since it started; zeros elsewhere (#91). */
     etwShedding: EtwShedding;
+    /** What the Linux eBPF probes lost to a full ring since the agent started; zeros elsewhere (#95). */
+    ringLoss: RingLoss;
     sensors: SensorState[];
   } | null;
 };
@@ -79,34 +82,43 @@ export async function loadFleet(
           a.health ? { sensors, lossObservedAt: a.health.lossObservedAt } : null,
           now
         ),
-        health: a.health && {
-          beaconAt: a.health.beaconAt.toISOString(),
-          agentVersion: a.health.agentVersion,
-          spoolBytes: Number(a.health.spoolBytes),
-          spoolDropped: Number(a.health.spoolDropped),
-          enrichDropped: Number(a.health.enrichDropped),
-          lossObservedAt: a.health.lossObservedAt?.toISOString() ?? null,
-          recentLoss: lostRecently(a.health.lossObservedAt, now),
-          rarityApplied: Number(a.health.rarityApplied),
-          rarityWithheld: Number(a.health.rarityWithheld),
-          rarityUnapplied: Number(a.health.rarityUnapplied),
-          watchdogRestarts: Number(a.health.watchdogRestarts),
-          tamperEvents: Number(a.health.tamperEvents),
-          parentImageEvictedLive: Number(a.health.parentImageEvictedLive),
-          parentImageEvictedDead: Number(a.health.parentImageEvictedDead),
-          iocIndicators: Number(a.health.iocIndicators),
-          iocFindings: Number(a.health.iocFindings),
-          iocCooledDown: Number(a.health.iocCooledDown),
-          alertsDropped: Number(a.health.alertsDropped),
-          etwShedding: {
-            pidCacheEvicted: Number(a.health.etwPidCacheEvicted),
-            siloEvicted: Number(a.health.etwSiloEvicted),
-            marksDropped: Number(a.health.etwMarksDropped),
-            quarantineUnremembered: Number(a.health.etwQuarantineUnremembered),
-          },
-          sensors,
-        },
+        health: a.health && healthView(a.health, sensors, now),
       };
     })
     .sort((x, y) => order[x.status] - order[y.status]);
+}
+
+/** An agent's stored beacon as the fleet view shows it: counters as numbers, times as ISO strings. */
+function healthView(health: AgentHealth, sensors: SensorState[], now: Date): NonNullable<FleetAgent["health"]> {
+  return {
+    beaconAt: health.beaconAt.toISOString(),
+    agentVersion: health.agentVersion,
+    spoolBytes: Number(health.spoolBytes),
+    spoolDropped: Number(health.spoolDropped),
+    enrichDropped: Number(health.enrichDropped),
+    lossObservedAt: health.lossObservedAt?.toISOString() ?? null,
+    recentLoss: lostRecently(health.lossObservedAt, now),
+    rarityApplied: Number(health.rarityApplied),
+    rarityWithheld: Number(health.rarityWithheld),
+    rarityUnapplied: Number(health.rarityUnapplied),
+    watchdogRestarts: Number(health.watchdogRestarts),
+    tamperEvents: Number(health.tamperEvents),
+    parentImageEvictedLive: Number(health.parentImageEvictedLive),
+    parentImageEvictedDead: Number(health.parentImageEvictedDead),
+    iocIndicators: Number(health.iocIndicators),
+    iocFindings: Number(health.iocFindings),
+    iocCooledDown: Number(health.iocCooledDown),
+    alertsDropped: Number(health.alertsDropped),
+    etwShedding: {
+      pidCacheEvicted: Number(health.etwPidCacheEvicted),
+      siloEvicted: Number(health.etwSiloEvicted),
+      marksDropped: Number(health.etwMarksDropped),
+      quarantineUnremembered: Number(health.etwQuarantineUnremembered),
+    },
+    ringLoss: {
+      dropped: Number(health.ringDropped),
+      execDropped: Number(health.execRingDropped),
+    },
+    sensors,
+  };
 }

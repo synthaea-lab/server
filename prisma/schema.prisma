@@ -113,6 +113,11 @@ model AgentHealth {
   etwSiloEvicted         BigInt    @default(0) @map("etw_silo_evicted")
   etwMarksDropped        BigInt    @default(0) @map("etw_marks_dropped")
   etwQuarantineUnremembered BigInt @default(0) @map("etw_quarantine_unremembered")
+  // Events the Linux eBPF probes lost to a full ring buffer, over every ring, and the part lost
+  // from the exec ring: process starts the rules never saw (#95). Cumulative, zero on other
+  // platforms and for an agent that predates them. The per-ring breakdown stays in the agent log.
+  ringDropped            BigInt    @default(0) @map("ring_dropped")
+  execRingDropped        BigInt    @default(0) @map("exec_ring_dropped")
   sensors                Json // [{ name, pulse_count, silent }]
 
   agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)

@@ -6,6 +6,7 @@ import {
   SILENCE_THRESHOLD_MS,
   fleetStatus,
   etwSheddingSummary,
+  ringLossSummary,
   iocFeedSummary,
   nextLossObservedAt,
   sensorsOf,
@@ -107,6 +108,14 @@ describe("parseHeartbeatBody", () => {
     ]).toEqual([0, 0, 0, 0]);
   });
 
+  it("reads what the eBPF rings lost, and counts it as zero for an agent that predates it (#95)", () => {
+    const withLoss = parseHeartbeatBody({ beacon: beacon({ ring_dropped: 1000, exec_ring_dropped: 3 }) });
+    expect([withLoss?.ring_dropped, withLoss?.exec_ring_dropped]).toEqual([1000, 3]);
+
+    const old = parseHeartbeatBody({ beacon: beacon() });
+    expect([old?.ring_dropped, old?.exec_ring_dropped]).toEqual([0, 0]);
+  });
+
   it("returns null for a body with no usable beacon instead of throwing", () => {
     for (const body of [null, "x", 7, {}, { beacon: null }, { beacon: { timestamp_ns: 1 } }]) {
       expect(parseHeartbeatBody(body)).toBeNull();
@@ -121,7 +130,7 @@ describe("parseHeartbeatBody", () => {
     expect(parseHeartbeatBody({ beacon: beacon({ rarity_applied: -1 }) })).toBeNull();
     expect(parseHeartbeatBody({ beacon: beacon({ rarity_withheld: 0.5 }) })).toBeNull();
     expect(parseHeartbeatBody({ beacon: beacon({ rarity_unapplied: "3" }) })).toBeNull();
-    for (const field of ["watchdog_restarts", "tamper_events", "parent_image_evicted_live", "parent_image_evicted_dead", "ioc_indicators", "ioc_findings", "ioc_cooled_down", "ioc_own_skipped", "ioc_sibling_skipped", "alerts_dropped", "etw_pid_cache_evicted", "etw_silo_evicted", "etw_marks_dropped", "etw_quarantine_unremembered"]) {
+    for (const field of ["watchdog_restarts", "tamper_events", "parent_image_evicted_live", "parent_image_evicted_dead", "ioc_indicators", "ioc_findings", "ioc_cooled_down", "ioc_own_skipped", "ioc_sibling_skipped", "alerts_dropped", "etw_pid_cache_evicted", "etw_silo_evicted", "etw_marks_dropped", "etw_quarantine_unremembered", "ring_dropped", "exec_ring_dropped"]) {
       expect(parseHeartbeatBody({ beacon: beacon({ [field]: -1 }) }), `${field} -1`).toBeNull();
       expect(parseHeartbeatBody({ beacon: beacon({ [field]: 0.5 }) }), `${field} 0.5`).toBeNull();
       expect(parseHeartbeatBody({ beacon: beacon({ [field]: "3" }) }), `${field} "3"`).toBeNull();
@@ -196,6 +205,7 @@ describe("nextLossObservedAt (#83)", () => {
     spool_dropped: 0,
     enrich_dropped: 0,
     etw_marks_dropped: 0,
+    ring_dropped: 0,
     ...over,
   });
   const stored = (over: Record<string, unknown> = {}) => ({
@@ -203,6 +213,7 @@ describe("nextLossObservedAt (#83)", () => {
     spoolDropped: BigInt(0),
     enrichDropped: BigInt(0),
     etwMarksDropped: BigInt(0),
+    ringDropped: BigInt(0),
     lossObservedAt: null as Date | null,
     ...over,
   });
@@ -231,6 +242,16 @@ describe("nextLossObservedAt (#83)", () => {
     const restarted = nextLossObservedAt(
       stored({ etwMarksDropped: BigInt(12), lossObservedAt: earlier }),
       beacon({ etw_marks_dropped: 0 }),
+      received
+    );
+    expect(restarted.lossObservedAt).toEqual(earlier);
+  });
+
+  it("stamps the receive time when the eBPF rings lost events, and not when the count fell on a restart (#95)", () => {
+    expect(nextLossObservedAt(stored(), beacon({ ring_dropped: 1000 }), received).lossObservedAt).toEqual(received);
+    const restarted = nextLossObservedAt(
+      stored({ ringDropped: BigInt(1000), lossObservedAt: earlier }),
+      beacon({ ring_dropped: 0 }),
       received
     );
     expect(restarted.lossObservedAt).toEqual(earlier);
@@ -280,6 +301,17 @@ describe("iocFeedSummary", () => {
 
   it("adds the repeats the cooldown held back only when there were some", () => {
     expect(iocFeedSummary(ioc(3, 3, 26))).toBe("3 indicators, 3 findings, 26 repeats held back");
+  });
+});
+
+describe("ringLossSummary (#95)", () => {
+  it("says none when the rings lost nothing, as on every host that is not Linux", () => {
+    expect(ringLossSummary({ dropped: 0, execDropped: 0 })).toBe("none");
+  });
+
+  it("gives the total, and the process starts among it when the exec ring lost any", () => {
+    expect(ringLossSummary({ dropped: 1000, execDropped: 0 })).toBe("1000");
+    expect(ringLossSummary({ dropped: 1000, execDropped: 3 })).toBe("1000 (3 process starts)");
   });
 });
 
@@ -334,6 +366,8 @@ describe("loadFleet and the IOC counters", () => {
     etwSiloEvicted: BigInt(0),
     etwMarksDropped: BigInt(0),
     etwQuarantineUnremembered: BigInt(0),
+    ringDropped: BigInt(0),
+    execRingDropped: BigInt(0),
     sensors: [],
     ...over,
   });

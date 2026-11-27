@@ -146,6 +146,32 @@ describe("console pages read the session with the request's headers (real databa
     expect(html).toContain("1 quarantine marks lost, 40 pid-cache evictions");
   });
 
+  it("shows what a Linux host's eBPF rings lost on the ops page, process starts included (#95)", async () => {
+    const tenant = await createTestTenant();
+    const agent = await createTestAgent(tenant.id, "agent-ops-ring", { hostname: "linux-host", lastSeen: new Date() });
+    await prisma.agentHealth.create({
+      data: {
+        agentId: agent.id,
+        tenantId: tenant.id,
+        beaconAt: new Date(),
+        receivedAt: new Date(),
+        agentVersion: "0.1.0",
+        spoolBytes: BigInt(0),
+        spoolDropped: BigInt(0),
+        enrichDropped: BigInt(0),
+        ringDropped: BigInt(1000),
+        execRingDropped: BigInt(3),
+        sensors: [{ name: "linux-ebpf", pulse_count: 3, silent: false }],
+      },
+    });
+    activeOrganizationId = tenant.id;
+
+    const html = await render("ops/page");
+
+    expect(html).toMatch(/eBPF events lost/);
+    expect(html).toContain("1000 (3 process starts)");
+  });
+
   it("tells a session without an organization to contact the administrator, on every page", async () => {
     activeOrganizationId = null;
     for (const [page, props] of [
