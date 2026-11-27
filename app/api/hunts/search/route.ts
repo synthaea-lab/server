@@ -13,8 +13,10 @@ import { archiveUnavailableResponse, isArchiveUnavailable } from "@/lib/hunt-arc
  * (detections), a `CaseQuery` (cases, `kind: "cases"`) or an `EventQuery` (events, `kind: "events"`),
  * validated as strictly as a saved hunt's.
  * Answers `{ source, rows, nextCursor, total }` (`total` only on the first page) for the first two, and
- * `{ source: "events", rows, truncated, incomplete, from, to }` for the archive: the newest events, one
- * page, no cursor, the typed columns only. Read-only and scoped to the session's tenant, which no part
+ * `{ source: "events", rows, truncated, incomplete, from, to, unknownTypes? }` for the archive: the newest
+ * events, one page, no cursor, the typed columns only. `unknownTypes` lists the event types the query named
+ * that have no file in the window (a misspelt type answers 200 with no row otherwise); it is absent when
+ * every named type has files. Read-only and scoped to the session's tenant, which no part
  * of the body can change. A tenant may have a few searches in flight whatever the source (429 beyond
  * that, also across server instances); a search over its time limit is a 504; the archive is a 503
  * while the lake is off, and a 501 when the lake is on but its store has no reader (#1105; no

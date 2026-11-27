@@ -113,6 +113,12 @@ export interface LakeResult {
   filesSkipped: number;
   /** The listing stopped at the cap: there are more matching files, and the answer is incomplete. */
   listingTruncated: boolean;
+  /**
+   * The event types that have at least one file in the range, sorted. A caller that named types can tell
+   * a type the archive never saw (a misspelling) from one that has files but no matching row. Partial
+   * when `listingTruncated`.
+   */
+  typesFound: string[];
 }
 
 /** A partition file, as listed. */
@@ -333,6 +339,7 @@ export async function queryLake(reader: LakeReader, q: LakeQuery): Promise<LakeR
   }
   const listed = await listPartitionFiles(reader, q.tenantId, first, last, types, MAX_FILES, newestFirst, q.signal);
   const files = listed.files;
+  const typesFound = Array.from(new Set(files.map((f) => f.type))).sort();
   files.sort((a, b) => (a.date !== b.date ? (a.date < b.date ? -1 : 1) : a.key < b.key ? -1 : 1));
   // The listing already walked the days in the order the query wants rows (newest first for "desc"),
   // so the files kept are the ones that order reads first.
@@ -365,5 +372,5 @@ export async function queryLake(reader: LakeReader, q: LakeQuery): Promise<LakeR
     }
   }
 
-  return { rows, truncated, filesMatched: files.length, filesRead, filesSkipped: listed.truncated ? 1 : 0, listingTruncated: listed.truncated };
+  return { rows, truncated, filesMatched: files.length, filesRead, filesSkipped: listed.truncated ? 1 : 0, listingTruncated: listed.truncated, typesFound };
 }

@@ -122,6 +122,41 @@ describe("searchEventsWithinLimit", () => {
     expect(await rowsOf(query({ types: ["exec"], where: { agentId: "a1" } }))).toEqual(["a1:exec"]);
   });
 
+  it("names the types of the query that have no file in the window, so a misspelling is not a quiet host", async () => {
+    await put(T1, "2026-10-30", "dns_query", "a", [row("a1", "2026-10-30T01:00:00Z", "dns_query", { query: "example.com" })]);
+    await put(T1, "2026-10-30", "exec", "a", [row("a1", "2026-10-30T02:00:00Z", "exec")]);
+    const { prisma } = fakePrisma();
+    const pageOf = async (q: ReturnType<typeof query>) => {
+      const out = await searchEventsWithinLimit(prisma, ready(store), T1, q, NOW);
+      if (out.status !== "ok") throw new Error("expected ok");
+      return out.page;
+    };
+    const misspelt = await pageOf(query({ types: ["dns"] }));
+    expect(misspelt.rows).toEqual([]);
+    expect(misspelt.unknownTypes).toEqual(["dns"]);
+    // One good type and one bad: the good one still answers, the bad one is named.
+    const mixed = await pageOf(query({ types: ["dns_query", "dns"] }));
+    expect(mixed.rows.map((r) => r.type)).toEqual(["dns_query"]);
+    expect(mixed.unknownTypes).toEqual(["dns"]);
+    // A real type with no row matching the filter is not unknown: it has files.
+    const quiet = await pageOf(query({ types: ["exec"], where: { agentId: "nobody" } }));
+    expect(quiet.rows).toEqual([]);
+    expect(quiet.unknownTypes).toBeUndefined();
+    expect((await pageOf(query({ types: ["exec"] }))).unknownTypes).toBeUndefined();
+    expect((await pageOf(query())).unknownTypes).toBeUndefined();
+  });
+
+  it("does not name unknown types when the listing was cut, since the list would be a guess", async () => {
+    const bytes = encodeParquet([row("a", "2026-10-30T01:00:00Z", "exec")]);
+    const keys = Array.from({ length: 2005 }, (_, i) => lakeKey(T1, "2026-10-30", "exec", `f${String(i).padStart(5, "0")}`));
+    const many: LakeReader = { list: async () => keys.map((key) => ({ key, size: 1 })), get: async () => bytes };
+    const { prisma } = fakePrisma();
+    const out = await searchEventsWithinLimit(prisma, ready(many), T1, query({ types: ["exec", "dns"] }), NOW);
+    if (out.status !== "ok") throw new Error("expected ok");
+    expect(out.page.incomplete).toBe(true);
+    expect(out.page.unknownTypes).toBeUndefined();
+  });
+
   it("returns one page of SEARCH_PAGE_SIZE rows, the newest, and says there are more", async () => {
     const rows = Array.from({ length: SEARCH_PAGE_SIZE + 10 }, (_, i) => row(`a${i}`, `2026-10-30T${String(Math.floor(i / 60)).padStart(2, "0")}:${String(i % 60).padStart(2, "0")}:00Z`, "exec"));
     await put(T1, "2026-10-30", "exec", "a", rows);

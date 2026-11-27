@@ -69,6 +69,11 @@ export default async function HuntMatchesPage({ params, searchParams }: { params
             {events.truncated ? "; more matched, narrow the window or add a filter" : ""}
             {events.incomplete ? "; the archive had more files than one search reads, so the oldest days were not read" : ""}.
           </p>
+          {events.unknownTypes && (
+            <p className="mb-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800" role="status">
+              No archived event has the type {events.unknownTypes.map((t) => `"${t}"`).join(", ")} in these days. Check the spelling: the archive names types such as exec, connect and dns_query.
+            </p>
+          )}
           {events.rows.length === 0 ? (
             <div className="rounded-lg bg-gray-50 p-6 text-center text-sm text-gray-600">Nothing matches.</div>
           ) : (
