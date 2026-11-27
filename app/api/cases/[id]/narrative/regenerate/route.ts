@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { citationsJson } from "@/lib/case-narrative";
-import { requireTenantMember } from "@/lib/admin-auth";
+import { citationsJson } from "@/lib/cases/narrative";
+import { requireTenantMember } from "@/lib/access/admin-auth";
 import { BadRequest, NotFound, route } from "@/lib/http/handler";
 import { buildEvidenceGraph } from "@/assistant/evidence-graph";
 import { generateNarrative, NarrativeGenerationError } from "@/assistant/llm-client";

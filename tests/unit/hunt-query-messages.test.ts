@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { HuntValidationError, parseHuntQuery } from "@/lib/hunt";
-import { parseEventQuery } from "@/lib/hunt-events";
-import { parseCaseQuery } from "@/lib/hunt-search";
+import { HuntValidationError, parseHuntQuery } from "@/lib/hunt/hunt";
+import { parseEventQuery } from "@/lib/hunt/events";
+import { parseCaseQuery } from "@/lib/hunt/search";
 
 /**
  * Pins the exact error message of each hunt query parser, and which check wins when several

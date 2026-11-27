@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaClient } from "@prisma/client";
-import { loadLakeBacklog } from "@/lib/lake-backlog";
+import { loadLakeBacklog } from "@/lib/lake/backlog";
 
 const NOW = new Date(Date.UTC(2026, 10, 9, 12, 0, 0));
 

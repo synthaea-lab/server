@@ -4,8 +4,8 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parquetReadObjects } from "hyparquet";
 import type { PrismaClient } from "@prisma/client";
-import { FsLakeStore, assertSafeKey, type LakeStore } from "@/lib/lake-store";
-import { lakeStoreFromEnv } from "@/lib/lake-env";
+import { FsLakeStore, assertSafeKey, type LakeStore } from "@/lib/lake/store";
+import { lakeStoreFromEnv } from "@/lib/lake/env";
 import {
   OTHER_TYPE,
   dayOf,
@@ -17,7 +17,7 @@ import {
   lakeKey,
   lakeRow,
   typeSegment,
-} from "@/lib/lake-writer";
+} from "@/lib/lake/writer";
 
 const SHA = "a".repeat(64);
 const RECEIVED = new Date(Date.UTC(2026, 9, 29, 10, 0, 0));

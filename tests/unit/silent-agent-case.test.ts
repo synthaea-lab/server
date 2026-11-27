@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { ACTIVE_CASE_STATUSES, CASE_STATUSES } from "@/lib/hunt-search";
+import { ACTIVE_CASE_STATUSES, CASE_STATUSES } from "@/lib/hunt/search";
 import {
   caseNamesAgent,
   findActiveCasesNamingAgents,
   findActiveSilentCases,
   silentCaseDescription,
   silentCaseTitle,
-} from "@/lib/silent-agent-case";
+} from "@/lib/cases/silent-agent-case";
 
 const lastSeen = new Date("2026-10-19T10:00:00Z");
 const d = (enrollmentId: string) => silentCaseDescription({ enrollmentId, lastSeen });

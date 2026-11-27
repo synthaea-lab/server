@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { GROUPING_TIME_WINDOW_MS, planGrouping, type ActiveCase, type UngroupedDetection } from "@/lib/case-grouping";
+import { GROUPING_TIME_WINDOW_MS, planGrouping, type ActiveCase, type UngroupedDetection } from "@/lib/cases/grouping";
 
 const T0 = new Date("2026-01-01T00:00:00Z").getTime();
 const at = (minutes: number) => new Date(T0 + minutes * 60_000);

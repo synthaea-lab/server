@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { authenticateAgent } from "@/lib/agent-auth";
+import { authenticateAgent } from "@/lib/access/agent-auth";
 import { z } from "zod";
 import { createHash } from "node:crypto";
-import { extractObservations, recordObservations } from "@/lib/prevalence";
-import { parseDetectionPayload } from "@/lib/detection-payload";
-import { acceptedOutcome, recordIngest, refusedOutcome, lagOf } from "@/lib/ingest-stats";
+import { extractObservations, recordObservations } from "@/lib/prevalence/prevalence";
+import { parseDetectionPayload } from "@/lib/ingest/detection-payload";
+import { acceptedOutcome, recordIngest, refusedOutcome, lagOf } from "@/lib/ingest/stats";
 
 export async function POST(req: NextRequest) {
   // Known once the certificate is checked: a refusal or failure after that is counted for it (#899).

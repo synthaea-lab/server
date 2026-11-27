@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateAgent } from "@/lib/agent-auth";
-import { loadActiveManifest } from "@/lib/active-content-manifest";
-import { artifactFile } from "@/lib/storage-paths";
+import { authenticateAgent } from "@/lib/access/agent-auth";
+import { loadActiveManifest } from "@/lib/content/active-manifest";
+import { artifactFile } from "@/lib/content/storage-paths";
 import fs from "fs/promises";
 import path from "path";
 import crypto from "crypto";

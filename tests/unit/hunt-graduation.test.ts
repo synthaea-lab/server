@@ -5,7 +5,7 @@ import {
   ruleSlug,
   type GraduationDetection,
   type GraduationHunt,
-} from "@/lib/hunt-graduation";
+} from "@/lib/hunt/graduation";
 
 const exec = (id: string, image: string, cmdline: string, extra: Partial<GraduationDetection> = {}): GraduationDetection => ({
   id,

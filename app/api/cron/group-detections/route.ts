@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyCronRequest } from "@/lib/cron-auth";
+import { verifyCronRequest } from "@/lib/access/cron-auth";
 import { prisma } from "@/lib/prisma";
-import { groupOneTenant } from "@/lib/case-grouping-store";
+import { groupOneTenant } from "@/lib/cases/grouping-store";
 import { perTenantResponse, runPerTenant } from "@/lib/cron/per-tenant";
 
 /** Fixed first key of this cron's per-tenant advisory lock (`lib/cron/per-tenant.ts`). */

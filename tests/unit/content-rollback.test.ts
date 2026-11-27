@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { correctiveReleaseAdvice } from "@/lib/content-rollback";
+import { correctiveReleaseAdvice } from "@/lib/content/rollback";
 
 describe("correctiveReleaseAdvice", () => {
   it("numbers the corrective release above every release of the ring and names the one to restore", () => {

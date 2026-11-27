@@ -19,7 +19,7 @@ vi.mock("@/lib/prisma", () => ({ prisma: db }));
 import { POST as ingestEvents } from "@/app/api/ingest/events/route";
 import { GET as writeLake } from "@/app/api/cron/write-lake/route";
 import { GET as pruneLake } from "@/app/api/cron/prune-lake/route";
-import { FsLakeStore, LakeNotDeletableError } from "@/lib/lake-store";
+import { FsLakeStore, LakeNotDeletableError } from "@/lib/lake/store";
 
 const SECRET = "test-proxy-secret";
 const NOW = Date.UTC(2026, 9, 29, 10, 0, 0);

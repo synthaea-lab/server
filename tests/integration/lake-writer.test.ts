@@ -6,8 +6,8 @@ import { NextRequest } from "next/server";
 import { parquetReadObjects } from "hyparquet";
 import { cleanDatabase, createTestAgent, createTestTenant, prisma } from "../helpers/db";
 import { createMtlsHeaders } from "../helpers/http";
-import { FsLakeStore } from "@/lib/lake-store";
-import { drainLakeQueue, enqueueLakeBatch } from "@/lib/lake-writer";
+import { FsLakeStore } from "@/lib/lake/store";
+import { drainLakeQueue, enqueueLakeBatch } from "@/lib/lake/writer";
 import { POST as ingest } from "@/app/api/v1/ingest/events/route";
 import { GET as writeLake } from "@/app/api/cron/write-lake/route";
 

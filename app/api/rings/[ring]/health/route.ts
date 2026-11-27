@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { analystMarkedFalsePositive } from "@/lib/detection-verdict";
+import { analystMarkedFalsePositive } from "@/lib/cases/detection-verdict";
 import { prisma } from "@/lib/prisma";
-import { requireTenantMember } from "@/lib/admin-auth";
-import { RINGS, isRing } from "@/lib/rings";
+import { requireTenantMember } from "@/lib/access/admin-auth";
+import { RINGS, isRing } from "@/lib/content/rings";
 
 const SILENCE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 

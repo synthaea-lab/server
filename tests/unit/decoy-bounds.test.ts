@@ -15,7 +15,7 @@ import {
   installDecoyShutdownFlush,
   resetDroppedDecoyReports,
   scheduleDecoyReport,
-} from "@/lib/decoy";
+} from "@/lib/ingest/decoy";
 
 /**
  * What bounds the decoy alarm on a server (issue #81, review of #732): a flood of decoy-shaped

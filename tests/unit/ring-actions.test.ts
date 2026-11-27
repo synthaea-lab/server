@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { availableActions, confirmation, confirmationMatches, NON_ADMIN_NOTE } from "@/lib/ring-actions";
-import { endedSession } from "@/lib/session-redirect";
+import { availableActions, confirmation, confirmationMatches, NON_ADMIN_NOTE } from "@/lib/content/ring-actions";
+import { endedSession } from "@/lib/access/session-redirect";
 
 describe("availableActions", () => {
   it("offers halt and rollback on a serving ring, rollback only on a halted one, nothing otherwise", () => {

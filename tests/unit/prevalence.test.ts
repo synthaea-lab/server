@@ -15,7 +15,7 @@ import {
   getSightingsOf,
   MAX_PIVOT_HOSTS,
   recordObservations,
-} from "@/lib/prevalence";
+} from "@/lib/prevalence/prevalence";
 import { GET as getPrevalenceRoute } from "@/app/api/prevalence/route";
 import { POST as ingestDetection } from "@/app/api/ingest/detection/route";
 

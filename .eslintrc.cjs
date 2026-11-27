@@ -25,6 +25,21 @@ module.exports = {
   },
   overrides: [
     {
+      // The library is what routes, pages and components call, never the reverse: a `lib/`
+      // module that imported one of them could not be unit-tested without the framework.
+      files: ["lib/**/*.ts"],
+      rules: {
+        "no-restricted-imports": [
+          "error",
+          {
+            patterns: [
+              { group: ["@/app/*", "@/components/*"], message: "lib/ must not depend on routes, pages or components." },
+            ],
+          },
+        ],
+      },
+    },
+    {
       // The JavaScript files (Next, PostCSS and start-up config) are outside tsconfig.json, so
       // they get the syntax rules only.
       files: ["*.js", "*.cjs", "*.mjs"],

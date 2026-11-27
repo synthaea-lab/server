@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireTenantMember } from "@/lib/admin-auth";
-import { getSightingsOf, PREVALENCE_KINDS, type PrevalenceKind } from "@/lib/prevalence";
+import { requireTenantMember } from "@/lib/access/admin-auth";
+import { getSightingsOf, PREVALENCE_KINDS, type PrevalenceKind } from "@/lib/prevalence/prevalence";
 import { hashPivot, sortGraph, type PivotKind } from "@/lib/graph";
 
 /** The pivot kinds this route actually renders — `PREVALENCE_KINDS` minus

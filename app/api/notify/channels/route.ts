@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireTenantAdmin, requireTenantMember } from "@/lib/admin-auth";
+import { requireTenantAdmin, requireTenantMember } from "@/lib/access/admin-auth";
 import { EVENTS, CHANNELS_PER_TENANT, CRON_PERIOD_SECONDS } from "@/lib/notify/outbox";
 import { guardOptionsFromEnv, NotifyBlockedError, resolvePublicTarget } from "@/lib/notify/guard";
 import { currentKey, sealSecret, sealUrl } from "@/lib/notify/secret";

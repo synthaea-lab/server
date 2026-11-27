@@ -4,9 +4,9 @@ import path from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { cleanDatabase, createTestAgent, createTestTenant, prisma } from "../helpers/db";
-import { FsLakeStore } from "@/lib/lake-store";
-import { drainLakeQueue, enqueueLakeBatch } from "@/lib/lake-writer";
-import { manifestHash, pruneLake } from "@/lib/lake-retention";
+import { FsLakeStore } from "@/lib/lake/store";
+import { drainLakeQueue, enqueueLakeBatch } from "@/lib/lake/writer";
+import { manifestHash, pruneLake } from "@/lib/lake/retention";
 import { GET as pruneRoute } from "@/app/api/cron/prune-lake/route";
 
 const DAY = 86_400_000;

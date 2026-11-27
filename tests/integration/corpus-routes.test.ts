@@ -6,7 +6,7 @@ import path from "node:path";
 import { NextRequest } from "next/server";
 import { cleanDatabase, createTestAgent, createTestTenant, prisma } from "../helpers/db";
 import { createMtlsHeaders, createTenantHeaders } from "../helpers/http";
-import { FINALIZE_STALE_AFTER_MS } from "@/lib/corpus";
+import { FINALIZE_STALE_AFTER_MS } from "@/lib/ingest/corpus";
 import { POST as submit } from "@/app/api/corpus/submit/route";
 import { POST as finalize } from "@/app/api/corpus/finalize/route";
 import { GET as listVersions } from "@/app/api/corpus/versions/route";

@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { endedSession } from "@/lib/session-redirect";
-import { availableActions, confirmation, confirmationMatches, type RingAction } from "@/lib/ring-actions";
-import type { Ring, RolloutState } from "@/lib/rings";
+import { endedSession } from "@/lib/access/session-redirect";
+import { availableActions, confirmation, confirmationMatches, type RingAction } from "@/lib/content/ring-actions";
+import type { Ring, RolloutState } from "@/lib/content/rings";
 
 type Props = { ring: Ring; rollout: RolloutState; servedVersion: number | null; hasEarlierRelease: boolean };
 

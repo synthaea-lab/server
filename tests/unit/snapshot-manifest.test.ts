@@ -9,7 +9,7 @@ import {
   SnapshotManifest,
   TEST_SNAPSHOT_SEED,
   verifySnapshotManifest,
-} from "@/lib/snapshot-manifest";
+} from "@/lib/content/snapshot-manifest";
 
 /**
  * Parity seam: `tests/fixtures/snapshot-manifest-golden.json` is a manifest signed

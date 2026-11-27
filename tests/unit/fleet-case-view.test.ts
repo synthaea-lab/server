@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeEntity, formatWhen, severityStyle, STATUS_LABEL } from "@/lib/fleet-case-view";
+import { describeEntity, formatWhen, severityStyle, STATUS_LABEL } from "@/lib/cases/fleet-case-view";
 
 const SHA = "72c31946".padEnd(64, "0");
 

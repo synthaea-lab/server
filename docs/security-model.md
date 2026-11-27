@@ -46,7 +46,7 @@ flowchart LR
 
 ### Agents
 
-mTLS, then four checks in [`authenticateAgent`](../lib/agent-auth.ts): the proxy secret (constant
+mTLS, then four checks in [`authenticateAgent`](../lib/access/agent-auth.ts): the proxy secret (constant
 time), a verified certificate, a CN in the subject, and an `agents` row with that enrollment ID.
 [Agent protocol](agent-protocol.md#how-a-request-is-authenticated) has the details. nginx refuses
 the agent paths without a valid certificate before the application sees them.
@@ -65,7 +65,7 @@ Users sign in with email and password through [better-auth](https://www.better-a
 Tenancy uses better-auth's organization plugin. An organization and its tenant share one id, and
 a session's `activeOrganizationId` is the tenant the user acts in. Users cannot create
 organizations, and organization deletion is disabled outright, since it would orphan the tenant's
-data; tenants are created only by [`provisionTenant`](../lib/tenant-provisioning.ts), which writes
+data; tenants are created only by [`provisionTenant`](../lib/access/tenant-provisioning.ts), which writes
 the tenant, the organization and the owner membership in one transaction.
 
 Sign-up is open: anyone who can reach `/api/auth/sign-up/email` can create a user. A user who is
@@ -80,22 +80,22 @@ a member of no organization can act on no tenant.
   routes authenticate their caller themselves.
 - Everywhere else it reads the session and redirects to `/login` without one. With one, it deletes
   the client's identity headers first, then sets `x-user-id` and, when the session has an active
-  organization, `x-tenant-id` ([`buildIdentityHeaders`](../lib/tenant.ts)). Deleting first matters:
+  organization, `x-tenant-id` ([`buildIdentityHeaders`](../lib/access/tenant.ts)). Deleting first matters:
   a session without an active organization must not forward a tenant the client named.
 
 The middleware runs on the Edge runtime, which cannot use the database, so it reads the session by
 calling the application's own `/api/auth/get-session` on `127.0.0.1` with the request's cookie
-([`lookupSession`](../lib/session-lookup.ts)). The address is never derived from the request's
+([`lookupSession`](../lib/access/session-lookup.ts)). The address is never derived from the request's
 `Host` or `X-Forwarded-Host`, the call times out after 5 seconds, and any failure is treated as
 "no session".
 
 Console pages do not depend on these headers: they read the session themselves with
-[`requireConsoleTenant`](../lib/console-session.ts).
+[`requireConsoleTenant`](../lib/access/console-session.ts).
 
 ### Scheduler
 
 `/api/cron/*` routes require `Authorization: Bearer <CRON_SECRET>`
-([`verifyCronRequest`](../lib/cron-auth.ts)). The comparison is constant time, and an unset or
+([`verifyCronRequest`](../lib/access/cron-auth.ts)). The comparison is constant time, and an unset or
 empty `CRON_SECRET` refuses every call (`500`) instead of matching a literal such as
 `Bearer undefined`. nginx limits `/api/cron/` to 10 requests per second per client address, with
 a burst of 20.
@@ -104,19 +104,19 @@ a burst of 20.
 
 Creating a tenant (`POST /api/admin/tenants`) happens before the caller has a tenant to hold a role
 in. It is allowed only to the user IDs listed in `PLATFORM_OPERATOR_USER_IDS`
-([`requirePlatformOperator`](../lib/platform-operator.ts)); unset means nobody.
+([`requirePlatformOperator`](../lib/access/platform-operator.ts)); unset means nobody.
 
 ## Authorization
 
 Inside a tenant, the roles are better-auth's own, stored in `auth_member.role`: `owner`, `admin`
 and `member`. A member with several roles has them comma-separated, and
-[`isAdminRole`](../lib/admin-auth.ts) is the one predicate that reads them.
+[`isAdminRole`](../lib/access/admin-auth.ts) is the one predicate that reads them.
 
 | Gate | Answers | Routes |
 | --- | --- | --- |
-| [`requireTenantMember`](../lib/admin-auth.ts) | `401` without an active tenant | Every tenant read (cases, fleet cases, graph, prevalence, ops, rings, agents, releases, notification channels list), hunts and searches, case narratives |
-| [`requireTenantAdmin`](../lib/admin-auth.ts) | `401` as above, `403` for a plain member or a user with no membership | Enrollment, ring assignment, content release, halt, rollback and IOC staging, binary release, notification channel create, change, test and delete, corpus finalization |
-| [`requirePlatformOperator`](../lib/platform-operator.ts) | `403` unless listed | Tenant provisioning |
+| [`requireTenantMember`](../lib/access/admin-auth.ts) | `401` without an active tenant | Every tenant read (cases, fleet cases, graph, prevalence, ops, rings, agents, releases, notification channels list), hunts and searches, case narratives |
+| [`requireTenantAdmin`](../lib/access/admin-auth.ts) | `401` as above, `403` for a plain member or a user with no membership | Enrollment, ring assignment, content release, halt, rollback and IOC staging, binary release, notification channel create, change, test and delete, corpus finalization |
+| [`requirePlatformOperator`](../lib/access/platform-operator.ts) | `403` unless listed | Tenant provisioning |
 
 Console pages that show admin actions check the role to decide what to render; the routes behind
 those actions check it again.
@@ -169,7 +169,7 @@ an alarm.
 
 An agent registers the hashes of the fake credentials it planted. If a request to a
 bearer-authenticated route presents one, someone read the canary file on that host and is using
-what they found: [`reportDecoyUse`](../lib/decoy.ts) records a detection against every agent that
+what they found: [`reportDecoyUse`](../lib/ingest/decoy.ts) records a detection against every agent that
 holds the hash. The work starts after the `401` is ready, so a decoy is not distinguishable by
 response time; concurrent lookups are bounded, the oldest queued lookup is shed under a flood, and
 alarms are limited to one per decoy and address per minute. The address recorded is `X-Real-IP`

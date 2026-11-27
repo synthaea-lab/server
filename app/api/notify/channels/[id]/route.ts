@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireTenantAdmin } from "@/lib/admin-auth";
+import { requireTenantAdmin } from "@/lib/access/admin-auth";
 import { EVENTS, CRON_PERIOD_SECONDS } from "@/lib/notify/outbox";
 import { sealSecret, currentKey } from "@/lib/notify/secret";
 import { resendFailed } from "@/lib/notify/outbox";

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { analystMarkedFalsePositive } from "@/lib/detection-verdict";
-import { verifyCronRequest } from "@/lib/cron-auth";
+import { analystMarkedFalsePositive } from "@/lib/cases/detection-verdict";
+import { verifyCronRequest } from "@/lib/access/cron-auth";
 import { prisma } from "@/lib/prisma";
-import { CANARY_RINGS } from "@/lib/rings";
+import { CANARY_RINGS } from "@/lib/content/rings";
 
 const SILENCE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 

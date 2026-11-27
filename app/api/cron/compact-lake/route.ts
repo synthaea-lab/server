@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyCronRequest } from "@/lib/cron-auth";
+import { verifyCronRequest } from "@/lib/access/cron-auth";
 import { prisma } from "@/lib/prisma";
-import { lakeCompactionIoFromEnv } from "@/lib/lake-env";
-import { compactLake } from "@/lib/lake-compaction";
+import { lakeCompactionIoFromEnv } from "@/lib/lake/env";
+import { compactLake } from "@/lib/lake/compaction";
 
 /**
  * GET /api/cron/compact-lake

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { authenticateAgent } from "@/lib/agent-auth";
-import { DecoyLimitError, DecoyRegistration, registerDecoyTokens } from "@/lib/decoy";
+import { authenticateAgent } from "@/lib/access/agent-auth";
+import { DecoyLimitError, DecoyRegistration, registerDecoyTokens } from "@/lib/ingest/decoy";
 
 /**
  * An agent registers the SHA-256 of the decoy credentials it planted (issue #81). Same

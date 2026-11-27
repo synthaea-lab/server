@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SNAPSHOT_PARAMS, guardFailure, snapshotParamsFromEnv } from "@/lib/snapshot-publish";
+import { DEFAULT_SNAPSHOT_PARAMS, guardFailure, snapshotParamsFromEnv } from "@/lib/content/snapshot-publish";
 
 const params = { ...DEFAULT_SNAPSHOT_PARAMS, minHostsCovered: 5, minEntryFraction: 0.5 };
 const at = (s: number) => new Date(s * 1000);

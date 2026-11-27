@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_HUNT_FORM, huntFormToBody, huntQueryIsValid, huntToFormValues, saveResponseMessage } from "@/lib/hunt-form";
+import { EMPTY_HUNT_FORM, huntFormToBody, huntQueryIsValid, huntToFormValues, saveResponseMessage } from "@/lib/hunt/form";
 
 const valid = { ...EMPTY_HUNT_FORM, name: "  Powershell spikes " };
 

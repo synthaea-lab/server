@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { Prisma, PrismaClient } from "@prisma/client";
-import { provisionTenant } from "@/lib/tenant-provisioning";
+import { provisionTenant } from "@/lib/access/tenant-provisioning";
 
 const prisma = new PrismaClient();
 

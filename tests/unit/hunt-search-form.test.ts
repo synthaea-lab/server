@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { searchFormFromParams, searchHref, searchRequestFromParams } from "@/lib/hunt-search-form";
+import { searchFormFromParams, searchHref, searchRequestFromParams } from "@/lib/hunt/search-form";
 
 describe("searchRequestFromParams", () => {
   it("is none until the form has been submitted", () => {

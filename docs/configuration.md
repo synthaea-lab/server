@@ -61,7 +61,7 @@ an address the container can reach.
 ## Telemetry archive
 
 Off unless exactly one of `LAKE_DIR` or `LAKE_S3_BUCKET` is set; both set is an error
-([`lib/lake-env.ts`](../lib/lake-env.ts)). The [datalake note](../datalake/README.md#configuration)
+([`lib/lake/env.ts`](../lib/lake/env.ts)). The [datalake note](../datalake/README.md#configuration)
 covers bucket permissions and the versioning requirement.
 
 | Variable | Default | Description |

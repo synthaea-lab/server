@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSeverity, outranks, ranksAtLeast, severityRank } from "@/lib/severity";
+import { isSeverity, outranks, ranksAtLeast, severityRank } from "@/lib/cases/severity";
 
 describe("severityRank", () => {
   it("orders low < medium < high < critical", () => {

@@ -1,21 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyCronRequest } from "@/lib/cron-auth";
+import { verifyCronRequest } from "@/lib/access/cron-auth";
 import { prisma } from "@/lib/prisma";
-import { lakeEnabled } from "@/lib/lake-store";
-import { loadLakeBacklogs } from "@/lib/lake-backlog";
+import { lakeEnabled } from "@/lib/lake/store";
+import { loadLakeBacklogs } from "@/lib/lake/backlog";
 import {
   LAKE_BACKLOG_CASE_TITLE,
   hasActiveLakeBacklogCase,
   lakeBacklogBreach,
   lakeBacklogCaseDescription,
   lakeBacklogLimitsFromEnv,
-} from "@/lib/lake-backlog-case";
+} from "@/lib/lake/backlog-case";
 
 /**
  * GET /api/cron/detect-lake-backlog
  * Scheduled job: opens a `high` case `Telemetry lake backlog` for a tenant whose lake write queue
  * is older than `LAKE_BACKLOG_MAX_AGE_MINUTES` (default 15) or longer than `LAKE_BACKLOG_MAX_BATCHES`
- * (default 5000), unless one is already open or investigating (issue #4, `lib/lake-backlog-case.ts`). It is its own
+ * (default 5000), unless one is already open or investigating (issue #4, `lib/lake/backlog-case.ts`). It is its own
  * job and not part of `write-lake`: a writer that is stuck or not scheduled never reaches its own check.
  *
  * Authentication: CRON_SECRET bearer (`verifyCronRequest`).

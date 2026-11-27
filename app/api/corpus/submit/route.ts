@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { extractEnrollmentId } from "@/lib/tenant";
-import { submitSamples } from "@/lib/corpus";
+import { extractEnrollmentId } from "@/lib/access/tenant";
+import { submitSamples } from "@/lib/ingest/corpus";
 import { z } from "zod";
 
 const CorpusSampleSchema = z.object({

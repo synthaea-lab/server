@@ -10,7 +10,7 @@ import {
   isNewerRelease,
   loadManifestBytes,
   EXAMPLE_MANIFEST,
-} from "@/lib/content-manifest";
+} from "@/lib/content/manifest";
 
 /** A real Ed25519 keypair, generated fresh per test file — this only needs to
  * self-consistently exercise sign/verify, not match the Rust agent's embedded

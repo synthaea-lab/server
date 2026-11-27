@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { requireConsoleTenant } from "@/lib/console-session";
+import { requireConsoleTenant } from "@/lib/access/console-session";
 import { NoOrganization } from "@/components/NoOrganization";
-import { FLEET_CASE_DETECTIONS_LIMIT, loadFleetCase } from "@/lib/fleet-case-load";
-import { describeEntity, formatWhen, severityStyle, STATUS_LABEL } from "@/lib/fleet-case-view";
+import { FLEET_CASE_DETECTIONS_LIMIT, loadFleetCase } from "@/lib/cases/fleet-case-load";
+import { describeEntity, formatWhen, severityStyle, STATUS_LABEL } from "@/lib/cases/fleet-case-view";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";

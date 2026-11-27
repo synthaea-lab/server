@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyCronRequest } from "@/lib/cron-auth";
+import { verifyCronRequest } from "@/lib/access/cron-auth";
 import { prisma } from "@/lib/prisma";
-import { joinOneTenant } from "@/lib/fleet-case-store";
+import { joinOneTenant } from "@/lib/cases/fleet-case-store";
 import { perTenantResponse, runPerTenant } from "@/lib/cron/per-tenant";
 
 /** Fixed first key of this cron's per-tenant advisory lock (`lib/cron/per-tenant.ts`): two
@@ -15,7 +15,7 @@ const JOIN_LABEL = "Fleet case join";
  * GET /api/cron/join-fleet-cases
  *
  * Cron endpoint (issue #62, box 1): joins each tenant's recent detections across hosts by a shared
- * entity (`lib/fleet-case.ts`: a file hash or an identity, with its caps) into fleet cases.
+ * entity (`lib/cases/fleet-case.ts`: a file hash or an identity, with its caps) into fleet cases.
  * Idempotent: a run over the same detections changes nothing. An entity belongs to one fleet case
  * per tenant, so a later sighting grows it, and a detection that bridges two cases merges them
  * into the older one. A fleet case's severity is the highest of its detections and never goes

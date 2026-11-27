@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { provisionTenant } from "@/lib/tenant-provisioning";
+import { provisionTenant } from "@/lib/access/tenant-provisioning";
 import { cleanDatabase, createTestTenant, prisma } from "../helpers/db";
 
 // #821: a Tenant with no matching Organization/Member is exactly the state "set

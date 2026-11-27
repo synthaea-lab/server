@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { HuntValidationError, RunUnavailableError, describeRunError } from "@/lib/hunt";
-import { isEventQuery, parseHuntInput, parseSavedHuntQuery, sameQuery } from "@/lib/hunt-input";
-import { EMPTY_HUNT_FORM, huntFormToBody, huntQueryIsValid, huntToFormValues } from "@/lib/hunt-form";
-import { describeQuery, runSummary } from "@/lib/hunt-view";
+import { HuntValidationError, RunUnavailableError, describeRunError } from "@/lib/hunt/hunt";
+import { isEventQuery, parseHuntInput, parseSavedHuntQuery, sameQuery } from "@/lib/hunt/input";
+import { EMPTY_HUNT_FORM, huntFormToBody, huntQueryIsValid, huntToFormValues } from "@/lib/hunt/form";
+import { describeQuery, runSummary } from "@/lib/hunt/view";
 
 const events = { kind: "events", version: 1, lastDays: 7, types: ["exec", "dns_query"], where: { imagePath: "/tmp/x", comm: "bash" } };
 

@@ -21,7 +21,7 @@ import {
   prunePrevalence,
   triageLines,
   type Prevalence,
-} from "@/lib/prevalence";
+} from "@/lib/prevalence/prevalence";
 import { GET as getCase } from "@/app/api/cases/[id]/route";
 import { GET as prune } from "@/app/api/cron/prune-prevalence/route";
 

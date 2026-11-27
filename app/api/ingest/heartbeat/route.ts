@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { authenticateAgent } from "@/lib/agent-auth";
-import { beaconTime, parseHeartbeatBody, type HealthBeacon } from "@/lib/health-beacon";
-import { nextLossObservedAt } from "@/lib/fleet-health";
-import { acceptedOutcome, recordIngest } from "@/lib/ingest-stats";
+import { authenticateAgent } from "@/lib/access/agent-auth";
+import { beaconTime, parseHeartbeatBody, type HealthBeacon } from "@/lib/ingest/health-beacon";
+import { nextLossObservedAt } from "@/lib/fleet/health";
+import { acceptedOutcome, recordIngest } from "@/lib/ingest/stats";
 
 export async function POST(req: NextRequest) {
   try {

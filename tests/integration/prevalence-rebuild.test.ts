@@ -5,9 +5,9 @@ import { NextRequest } from "next/server";
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cleanDatabase, createTestAgent, createTestTenant, prisma } from "../helpers/db";
 import { createMtlsHeaders } from "../helpers/http";
-import { FsLakeStore } from "@/lib/lake-store";
-import { dayOf, drainLakeQueue } from "@/lib/lake-writer";
-import { compareSightings, isIdentical, rebuildSightings, type AgentSighting } from "@/lib/prevalence-rebuild";
+import { FsLakeStore } from "@/lib/lake/store";
+import { dayOf, drainLakeQueue } from "@/lib/lake/writer";
+import { compareSightings, isIdentical, rebuildSightings, type AgentSighting } from "@/lib/prevalence/rebuild";
 import { POST } from "@/app/api/v1/ingest/events/route";
 
 const SECRET = "test-proxy-secret";

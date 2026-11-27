@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { isSignInRedirect, runResponseMessage, runSummary, SESSION_EXPIRED_MESSAGE } from "@/lib/hunt-view";
+import { isSignInRedirect, runResponseMessage, runSummary, SESSION_EXPIRED_MESSAGE } from "@/lib/hunt/view";
 
 export function RunHuntButton({ huntId }: { huntId: string }) {
   const router = useRouter();

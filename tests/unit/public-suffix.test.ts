@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isPublicSuffix } from "@/lib/public-suffix";
-import { buildFeed } from "@/lib/ioc-feed";
+import { buildFeed } from "@/lib/ioc/feed";
 
 describe("isPublicSuffix", () => {
   it("is true for ICANN suffixes and for private ones", () => {

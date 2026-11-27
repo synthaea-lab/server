@@ -16,8 +16,8 @@ import {
   runResponseMessage,
   runState,
   runSummary,
-} from "@/lib/hunt-view";
-import { HUNT_TRANSACTION_TIMEOUT_MS } from "@/lib/hunt";
+} from "@/lib/hunt/view";
+import { HUNT_TRANSACTION_TIMEOUT_MS } from "@/lib/hunt/hunt";
 
 describe("describeQuery", () => {
   it("says the window in days when it is a whole number of days, in hours otherwise", () => {

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requirePlatformOperator } from "@/lib/platform-operator";
-import { provisionTenant } from "@/lib/tenant-provisioning";
+import { requirePlatformOperator } from "@/lib/access/platform-operator";
+import { provisionTenant } from "@/lib/access/tenant-provisioning";
 
 const CreateTenantSchema = z.object({
   name: z.string().min(1).max(200),

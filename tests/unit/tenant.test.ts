@@ -7,7 +7,7 @@ import {
   getTenantId,
   getUserId,
   verifyProxyAuth,
-} from "@/lib/tenant";
+} from "@/lib/access/tenant";
 
 describe("tenant helpers", () => {
   describe("extractEnrollmentId", () => {

@@ -11,7 +11,7 @@ import {
   joinKeys,
   MAX_AGENTS_PER_ENTITY,
   MIN_FLEET_FOR_COMMON,
-} from "@/lib/fleet-case";
+} from "@/lib/cases/fleet-case";
 
 const SHA = "a".repeat(64);
 const OTHER_SHA = "b".repeat(64);

@@ -6,7 +6,7 @@ import {
   pruneIngestStats,
   recordIngest,
   refusedOutcome,
-} from "@/lib/ingest-stats";
+} from "@/lib/ingest/stats";
 
 /** A lag of `maxMs` over `count` events (all at the max, for a simple sum). */
 const lag = (maxMs: number, count: number) => ({ sumMs: maxMs * count, count, maxMs });

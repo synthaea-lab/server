@@ -3,7 +3,7 @@ import { createHash } from "crypto";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { DEFAULT_MIN_AGE_MS, pruneUnreferencedArtifacts } from "@/lib/content-retention";
+import { DEFAULT_MIN_AGE_MS, pruneUnreferencedArtifacts } from "@/lib/content/retention";
 
 const sha = (b: Buffer | string) => createHash("sha256").update(b).digest("hex");
 

@@ -7,7 +7,7 @@ import {
   createTestDetection,
   prisma,
 } from "../helpers/db";
-import { GROUPING_BATCH_SIZE } from "@/lib/case-grouping";
+import { GROUPING_BATCH_SIZE } from "@/lib/cases/grouping";
 import { GET } from "@/app/api/cron/group-detections/route";
 // The route imports its own `prisma` singleton from "@/lib/prisma" — a
 // different PrismaClient instance than the one `../helpers/db` constructs

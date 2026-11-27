@@ -15,7 +15,7 @@ Isolation between tenants is the application's job: every query filters on `tena
 database has no row-level security policies ([Security model](security-model.md#tenant-isolation)).
 
 `Organization`, better-auth's tenancy table, shares its `id` with `Tenant`. Nothing in the schema
-links the two; [`provisionTenant`](../lib/tenant-provisioning.ts) creates both in one transaction,
+links the two; [`provisionTenant`](../lib/access/tenant-provisioning.ts) creates both in one transaction,
 and a session's `activeOrganizationId` is used as the tenant id.
 
 ## Models by area
@@ -101,7 +101,7 @@ is given. Because there is no migration path, upgrading a server with data in it
 resetting the database; this is part of what "alpha" means for the server.
 
 At start-up the server checks that the `decoy_tokens` table exists and logs an error if it does
-not ([`checkDecoyTable`](../lib/decoy.ts)), since a missing table would otherwise only show when
+not ([`checkDecoyTable`](../lib/ingest/decoy.ts)), since a missing table would otherwise only show when
 a decoy is first used.
 
 ## Growth and retention

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
 import path from "path";
-import { ContentManifest, canonicalJSON, verifySignature } from "@/lib/content-manifest";
+import { ContentManifest, canonicalJSON, verifySignature } from "@/lib/content/manifest";
 
 /**
  * Parity-seam golden fixture: the same

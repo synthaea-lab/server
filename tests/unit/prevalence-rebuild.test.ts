@@ -2,16 +2,16 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { FsLakeStore } from "@/lib/lake-store";
-import { encodeParquet, lakeKey, lakeRow, type LakeRow as WriterRow } from "@/lib/lake-writer";
-import { aggregateSightings, extractObservations } from "@/lib/prevalence";
+import { FsLakeStore } from "@/lib/lake/store";
+import { encodeParquet, lakeKey, lakeRow, type LakeRow as WriterRow } from "@/lib/lake/writer";
+import { aggregateSightings, extractObservations } from "@/lib/prevalence/prevalence";
 import {
   compareSightings,
   isIdentical,
   mergeSightings,
   rebuildSightings,
   type AgentSighting,
-} from "@/lib/prevalence-rebuild";
+} from "@/lib/prevalence/rebuild";
 
 const T1 = "tenant-one";
 const T2 = "tenant-two";

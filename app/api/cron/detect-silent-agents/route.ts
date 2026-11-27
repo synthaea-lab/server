@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyCronRequest } from "@/lib/cron-auth";
+import { verifyCronRequest } from "@/lib/access/cron-auth";
 import { prisma } from "@/lib/prisma";
 import {
   caseNamesAgent,
   findActiveCasesNamingAgents,
   silentCaseDescription,
   silentCaseTitle,
-} from "@/lib/silent-agent-case";
+} from "@/lib/cases/silent-agent-case";
 
 const SILENCE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 

@@ -7,7 +7,7 @@ import {
   clientAddress,
   hashToken,
   looksLikeDecoy,
-} from "@/lib/decoy";
+} from "@/lib/ingest/decoy";
 
 describe("decoy token helpers", () => {
   it("takes the token of a Bearer header whatever the case or spacing, and nothing else", () => {

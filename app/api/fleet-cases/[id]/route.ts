@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireTenantMember } from "@/lib/admin-auth";
-import { loadFleetCase } from "@/lib/fleet-case-load";
+import { requireTenantMember } from "@/lib/access/admin-auth";
+import { loadFleetCase } from "@/lib/cases/fleet-case-load";
 
 /**
  * GET /api/fleet-cases/[id] — one fleet case with its entities, its hosts and its detections

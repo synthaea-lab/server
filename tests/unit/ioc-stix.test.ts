@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { buildFeedFromStix } from "@/lib/ioc-stix";
-import { buildFeed } from "@/lib/ioc-feed";
-import { buildIocStage } from "@/lib/ioc-stage";
+import { buildFeedFromStix } from "@/lib/ioc/stix";
+import { buildFeed } from "@/lib/ioc/feed";
+import { buildIocStage } from "@/lib/ioc/stage";
 
 const HASH = "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f";
 const NOW = new Date("2026-10-30T12:00:00Z");

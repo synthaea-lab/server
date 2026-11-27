@@ -5,7 +5,7 @@ import { mkdirSync, writeFileSync, rmSync } from "fs";
 import { join } from "path";
 import { cleanDatabase, createTestTenant, createTestAgent, prisma } from "../helpers/db";
 import { createMtlsHeaders } from "../helpers/http";
-import { canonicalJSON, type ContentManifest } from "@/lib/content-manifest";
+import { canonicalJSON, type ContentManifest } from "@/lib/content/manifest";
 import { GET } from "@/app/api/content/manifest/[ring]/route";
 
 const { privateKey } = generateKeyPairSync("ed25519");

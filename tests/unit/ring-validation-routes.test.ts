@@ -24,9 +24,9 @@ import { POST as releaseBinary } from "@/app/api/release/route";
 import { GET as getContentManifest } from "@/app/api/content/manifest/[ring]/route";
 import { GET as listRingAgents } from "@/app/api/rings/[ring]/agents/route";
 import { GET as getRingHealth } from "@/app/api/rings/[ring]/health/route";
-import { ContentManifest } from "@/lib/content-manifest";
-import { keyRotationFile } from "@/lib/key-rotation";
-import { RINGS } from "@/lib/rings";
+import { ContentManifest } from "@/lib/content/manifest";
+import { keyRotationFile } from "@/lib/content/key-rotation";
+import { RINGS } from "@/lib/content/rings";
 
 const UNKNOWN_RING = "canary_9";
 const SECRET = "test-proxy-secret";

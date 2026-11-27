@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyCronRequest } from "@/lib/cron-auth";
+import { verifyCronRequest } from "@/lib/access/cron-auth";
 import { prisma } from "@/lib/prisma";
 import { positiveIntFromEnv } from "@/lib/env";
-import { pruneIngestStats } from "@/lib/ingest-stats";
+import { pruneIngestStats } from "@/lib/ingest/stats";
 import {
   DEFAULT_MAX_ROWS_PER_TENANT,
   DEFAULT_RETENTION_DAYS,
   prunePrevalence,
-} from "@/lib/prevalence";
+} from "@/lib/prevalence/prevalence";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireTenantMember } from "@/lib/admin-auth";
+import { requireTenantMember } from "@/lib/access/admin-auth";
 import { route } from "@/lib/http/handler";
 import { parseLimit } from "@/lib/http/query";
 

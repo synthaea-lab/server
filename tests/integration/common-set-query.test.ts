@@ -1,6 +1,6 @@
 import { beforeEach, afterAll, describe, expect, it } from "vitest";
 import { cleanDatabase, createTestAgent, createTestTenant, prisma } from "../helpers/db";
-import { getCommonHashes, countReportingHosts, recordObservations } from "@/lib/prevalence";
+import { getCommonHashes, countReportingHosts, recordObservations } from "@/lib/prevalence/prevalence";
 
 const hash = (c: string) => c.repeat(64);
 const sha = (c: string) => [{ kind: "sha256" as const, key: hash(c) }];

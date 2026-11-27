@@ -5,7 +5,7 @@ import {
   getPrevalence,
   recordObservations,
   recordSightings,
-} from "@/lib/prevalence";
+} from "@/lib/prevalence/prevalence";
 
 const OBS = [{ kind: "sha256" as const, key: "b".repeat(64) }];
 

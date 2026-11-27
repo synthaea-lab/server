@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireTenantMember } from "@/lib/admin-auth";
-import { listFleetCases } from "@/lib/fleet-case-load";
+import { requireTenantMember } from "@/lib/access/admin-auth";
+import { listFleetCases } from "@/lib/cases/fleet-case-load";
 
 /**
  * GET /api/fleet-cases — the tenant's fleet cases (#62), the ones `cron/join-fleet-cases` made

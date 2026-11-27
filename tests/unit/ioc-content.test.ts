@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { existsSync, readdirSync, readFileSync } from "fs";
 import path from "path";
-import { buildFeed, isValidFeedName } from "@/lib/ioc-feed";
+import { buildFeed, isValidFeedName } from "@/lib/ioc/feed";
 import { isPublicSuffix } from "@/lib/public-suffix";
 import { itWithSibling, siblingPath } from "../helpers/siblings";
 

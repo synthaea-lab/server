@@ -1,9 +1,9 @@
 import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireTenantMember } from "@/lib/admin-auth";
+import { requireTenantMember } from "@/lib/access/admin-auth";
 import { parseLimit } from "@/lib/http/query";
-import { RINGS, isRing } from "@/lib/rings";
+import { RINGS, isRing } from "@/lib/content/rings";
 
 /**
  * GET /api/rings/{ring}/agents

@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateAgent } from "@/lib/agent-auth";
+import { authenticateAgent } from "@/lib/access/agent-auth";
 import { prisma } from "@/lib/prisma";
 
 /**
  * GET /api/snapshot/artifact[?sha256={hex}]
  * Agent endpoint (ADR-0033): the bytes of the agent's own tenant's common-set snapshot
- * (the format `lib/common-set-snapshot.ts` builds). With `sha256`, it must equal the stored
+ * (the format `lib/content/common-set-snapshot.ts` builds). With `sha256`, it must equal the stored
  * snapshot's, else 409: an agent that read a manifest and then a newer build replaced it gets
  * told, instead of bytes its manifest does not describe. The bytes are checked against the
  * stored hash before they are sent.

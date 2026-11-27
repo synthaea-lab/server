@@ -4,7 +4,7 @@ import {
   groupingTechnique,
   isRelatedTechnique,
   withinTimeWindow,
-} from "@/lib/case-grouping";
+} from "@/lib/cases/grouping";
 
 describe("isRelatedTechnique", () => {
   it("groups detections with the exact same technique", () => {

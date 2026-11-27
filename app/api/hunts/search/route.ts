@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireTenantMember } from "@/lib/admin-auth";
-import { MAX_CONCURRENT_SEARCHES_PER_TENANT, parseSearchRequest, searchFailure, searchWithinLimit } from "@/lib/hunt-search";
-import { searchEventsWithinLimit } from "@/lib/hunt-events-search";
-import { eventArchiveFromEnv } from "@/lib/lake-env";
-import { archiveUnavailableResponse, isArchiveUnavailable } from "@/lib/hunt-archive-response";
+import { requireTenantMember } from "@/lib/access/admin-auth";
+import { MAX_CONCURRENT_SEARCHES_PER_TENANT, parseSearchRequest, searchFailure, searchWithinLimit } from "@/lib/hunt/search";
+import { searchEventsWithinLimit } from "@/lib/hunt/events-search";
+import { eventArchiveFromEnv } from "@/lib/lake/env";
+import { archiveUnavailableResponse, isArchiveUnavailable } from "@/lib/hunt/archive-response";
 
 /**
  * POST /api/hunts/search — one page of an ad-hoc search over the detection or case store, or over the

@@ -3,10 +3,10 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cleanDatabase, createTestAgent, createTestTenant, prisma } from "../helpers/db";
-import { FsLakeStore } from "@/lib/lake-store";
-import { drainLakeQueue, enqueueLakeBatch } from "@/lib/lake-writer";
-import { queryLake } from "@/lib/lake-query";
-import { pruneLake } from "@/lib/lake-retention";
+import { FsLakeStore } from "@/lib/lake/store";
+import { drainLakeQueue, enqueueLakeBatch } from "@/lib/lake/writer";
+import { queryLake } from "@/lib/lake/query";
+import { pruneLake } from "@/lib/lake/retention";
 
 const DAY = 86_400_000;
 const NOW = new Date(Date.UTC(2026, 9, 30, 12, 0, 0));

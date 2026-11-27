@@ -10,7 +10,7 @@ import {
   SESSION_EXPIRED_MESSAGE,
   type GraduationForm,
   type GraduationResult,
-} from "@/lib/hunt-view";
+} from "@/lib/hunt/view";
 
 const PLATFORMS: GraduationForm["platform"][] = ["linux", "windows", "macos"];
 

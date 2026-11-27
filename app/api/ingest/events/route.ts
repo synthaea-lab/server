@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
-import { authenticateAgent, type AuthenticatedAgent } from "@/lib/agent-auth";
-import { acceptedOutcome, recordIngest, refusedOutcome, lagOf } from "@/lib/ingest-stats";
-import { aggregateSightings, extractObservations, recordSightings } from "@/lib/prevalence";
-import { eventTime } from "@/lib/event-time";
-import { lakeEnabled } from "@/lib/lake-store";
-import { enqueueLakeBatch, eventSources } from "@/lib/lake-writer";
+import { authenticateAgent, type AuthenticatedAgent } from "@/lib/access/agent-auth";
+import { acceptedOutcome, recordIngest, refusedOutcome, lagOf } from "@/lib/ingest/stats";
+import { aggregateSightings, extractObservations, recordSightings } from "@/lib/prevalence/prevalence";
+import { eventTime } from "@/lib/ingest/event-time";
+import { lakeEnabled } from "@/lib/lake/store";
+import { enqueueLakeBatch, eventSources } from "@/lib/lake/writer";
 
 /** Body ceiling, checked on the bytes actually read (not the Content-Length header). */
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
@@ -24,7 +24,7 @@ const MAX_EVENTS_PER_BATCH = 1000;
  * Response: `{ accepted, batch_id }`, the shape `transport::UploadResponse` reads.
  *
  * Events are counted into fleet prevalence (issue #76). With `LAKE_DIR` set they are also queued
- * for the telemetry lake (issue #77, ADR-0041, `lib/lake-writer.ts`); without it an accepted event
+ * for the telemetry lake (issue #77, ADR-0041, `lib/lake/writer.ts`); without it an accepted event
  * is not retained. The agent drops a spooled segment once it gets a 2xx, which with the lake on
  * means "durably queued", not "written to the lake".
  */

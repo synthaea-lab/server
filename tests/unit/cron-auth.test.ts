@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { NextRequest } from "next/server";
-import { checkCronAuth, verifyCronRequest } from "@/lib/cron-auth";
+import { checkCronAuth, verifyCronRequest } from "@/lib/access/cron-auth";
 
 describe("checkCronAuth", () => {
   it("accepts the exact bearer token", () => {

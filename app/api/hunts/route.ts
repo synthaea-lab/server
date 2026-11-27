@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireTenantMember } from "@/lib/admin-auth";
-import { HuntValidationError } from "@/lib/hunt";
-import { parseHuntInput } from "@/lib/hunt-input";
+import { requireTenantMember } from "@/lib/access/admin-auth";
+import { HuntValidationError } from "@/lib/hunt/hunt";
+import { parseHuntInput } from "@/lib/hunt/input";
 
 /** Hunts a tenant may have; a bound on rows and on what the cron has to run. */
 const MAX_HUNTS_PER_TENANT = 200;

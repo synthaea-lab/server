@@ -12,7 +12,7 @@ import {
   type DetectionRow,
   type SearchPage,
   type SearchRequest,
-} from "@/lib/hunt-search";
+} from "@/lib/hunt/search";
 
 const HOUR = 3_600_000;
 const huntQuery = { version: 1 as const, lastHours: 24 };

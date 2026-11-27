@@ -23,7 +23,7 @@ import {
   MAX_TITLE_BYTES,
   cutUtf8HeadTail,
   truncateUtf8,
-} from "@/lib/detection-payload";
+} from "@/lib/ingest/detection-payload";
 
 const headers = {
   "X-Proxy-Secret": "test-proxy-secret",

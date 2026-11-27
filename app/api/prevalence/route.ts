@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireTenantMember } from "@/lib/admin-auth";
-import { getPrevalence, PREVALENCE_KINDS, type PrevalenceKind } from "@/lib/prevalence";
+import { requireTenantMember } from "@/lib/access/admin-auth";
+import { getPrevalence, PREVALENCE_KINDS, type PrevalenceKind } from "@/lib/prevalence/prevalence";
 
 /**
  * GET /api/prevalence?kind={kind}&key={key}

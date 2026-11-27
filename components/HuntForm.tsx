@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { SEVERITIES } from "@/lib/hunt";
-import { EVENT_FILTERS } from "@/lib/hunt-events";
+import { SEVERITIES } from "@/lib/hunt/hunt";
+import { EVENT_FILTERS } from "@/lib/hunt/events";
 import {
   EMPTY_HUNT_FORM,
   huntFormToBody,
   saveResponseMessage,
   type HuntFormValues,
-} from "@/lib/hunt-form";
-import { isSignInRedirect, SESSION_EXPIRED_MESSAGE } from "@/lib/hunt-view";
+} from "@/lib/hunt/form";
+import { isSignInRedirect, SESSION_EXPIRED_MESSAGE } from "@/lib/hunt/view";
 
 const INPUT = "mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-900";
 const LABEL = "block text-sm font-medium text-gray-700";

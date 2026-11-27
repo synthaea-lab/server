@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireTenantAdmin, requireTenantMember } from "@/lib/admin-auth";
+import { requireTenantAdmin, requireTenantMember } from "@/lib/access/admin-auth";
 import { z } from "zod";
-import { RingSchema } from "@/lib/rings";
-import { publishRelease } from "@/lib/release-publish";
+import { RingSchema } from "@/lib/content/rings";
+import { publishRelease } from "@/lib/content/release-publish";
 import { publishResponse } from "@/lib/http/publish-response";
 import { parseLimit } from "@/lib/http/query";
 

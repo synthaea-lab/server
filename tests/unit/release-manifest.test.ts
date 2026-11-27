@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSafeReleasePath, ReleaseManifest } from "@/lib/release-manifest";
+import { isSafeReleasePath, ReleaseManifest } from "@/lib/content/release-manifest";
 
 const SHA = "a".repeat(64);
 

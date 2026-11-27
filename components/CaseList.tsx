@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Case } from "@prisma/client";
-import { severityColor, statusColor } from "@/lib/case-display";
+import { severityColor, statusColor } from "@/lib/cases/display";
 
 interface Props {
   cases: Case[];

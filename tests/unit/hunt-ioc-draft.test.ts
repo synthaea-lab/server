@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "fs";
 import path from "path";
-import { parseGraduationRequest, type GraduationDetection, type GraduationHunt } from "@/lib/hunt-graduation";
-import { draftIocSetFromHunt, graduationKind, iocObservations, parseIocGraduationRequest, type IocPrevalence } from "@/lib/hunt-ioc-draft";
-import { prevalenceKey, type Prevalence } from "@/lib/prevalence";
+import { parseGraduationRequest, type GraduationDetection, type GraduationHunt } from "@/lib/hunt/graduation";
+import { draftIocSetFromHunt, graduationKind, iocObservations, parseIocGraduationRequest, type IocPrevalence } from "@/lib/hunt/ioc-draft";
+import { prevalenceKey, type Prevalence } from "@/lib/prevalence/prevalence";
 
 const SHA_A = "a".repeat(64);
 const SHA_B = "0123456789abcdef".repeat(4);

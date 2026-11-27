@@ -6,8 +6,8 @@ import {
   escapeLike,
   huntConditions,
   parseHuntQuery,
-} from "@/lib/hunt";
-import { parseHuntInput, sameQuery } from "@/lib/hunt-input";
+} from "@/lib/hunt/hunt";
+import { parseHuntInput, sameQuery } from "@/lib/hunt/input";
 
 const AGENT = "123e4567-e89b-12d3-a456-426614174000";
 const base = { version: 1, lastHours: 24 };

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireTenantAdmin, requireTenantMember } from "@/lib/admin-auth";
+import { requireTenantAdmin, requireTenantMember } from "@/lib/access/admin-auth";
 import { z } from "zod";
-import { RingSchema } from "@/lib/rings";
+import { RingSchema } from "@/lib/content/rings";
 
 const RingAssignmentSchema = z.object({
   ring: RingSchema,

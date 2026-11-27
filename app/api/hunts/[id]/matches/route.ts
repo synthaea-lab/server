@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireTenantMember } from "@/lib/admin-auth";
-import { HuntValidationError } from "@/lib/hunt";
-import { isEventQuery, parseSavedHuntQuery } from "@/lib/hunt-input";
-import { searchEventsWithinLimit } from "@/lib/hunt-events-search";
-import { eventArchiveFromEnv } from "@/lib/lake-env";
-import { archiveUnavailableResponse, isArchiveUnavailable } from "@/lib/hunt-archive-response";
-import { MAX_CONCURRENT_SEARCHES_PER_TENANT, searchFailure, searchWithinLimit } from "@/lib/hunt-search";
+import { requireTenantMember } from "@/lib/access/admin-auth";
+import { HuntValidationError } from "@/lib/hunt/hunt";
+import { isEventQuery, parseSavedHuntQuery } from "@/lib/hunt/input";
+import { searchEventsWithinLimit } from "@/lib/hunt/events-search";
+import { eventArchiveFromEnv } from "@/lib/lake/env";
+import { archiveUnavailableResponse, isArchiveUnavailable } from "@/lib/hunt/archive-response";
+import { MAX_CONCURRENT_SEARCHES_PER_TENANT, searchFailure, searchWithinLimit } from "@/lib/hunt/search";
 
 /**
  * GET /api/hunts/[id]/matches?cursor= — one page of what the hunt's query matches now, newest

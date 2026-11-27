@@ -6,7 +6,7 @@ const db = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
 
-import { authenticateAgent } from "@/lib/agent-auth";
+import { authenticateAgent } from "@/lib/access/agent-auth";
 
 const SECRET = "test-proxy-secret";
 const valid = {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyCronRequest } from "@/lib/cron-auth";
+import { verifyCronRequest } from "@/lib/access/cron-auth";
 import { prisma } from "@/lib/prisma";
 import { deliverDue, purge } from "@/lib/notify/outbox";
 import { evaluateHostTransitions } from "@/lib/notify/host-transitions";

@@ -13,8 +13,8 @@ const lib = vi.hoisted(() => ({
   scheduleDecoyReport: vi.fn(),
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: { tag: "prisma" } }));
-vi.mock("@/lib/decoy", () => ({ scheduleDecoyReport: lib.scheduleDecoyReport }));
-vi.mock("@/lib/content-retention", () => ({ pruneUnreferencedArtifacts: lib.pruneUnreferencedArtifacts }));
+vi.mock("@/lib/ingest/decoy", () => ({ scheduleDecoyReport: lib.scheduleDecoyReport }));
+vi.mock("@/lib/content/retention", () => ({ pruneUnreferencedArtifacts: lib.pruneUnreferencedArtifacts }));
 vi.mock("@/lib/notify/outbox", () => ({ deliverDue: lib.deliverDue, purge: lib.purge }));
 vi.mock("@/lib/notify/host-transitions", () => ({ evaluateHostTransitions: lib.evaluateHostTransitions }));
 

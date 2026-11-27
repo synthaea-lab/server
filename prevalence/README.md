@@ -25,7 +25,7 @@ something an attacker cannot reproduce offline.
   of the hashes seen on enough hosts, which agents download over mTLS (`/api/snapshot/manifest`,
   `/api/snapshot/artifact`) and use as a weak "not in the common set" signal. Signing is off
   unless `SYNTHAEA_SNAPSHOT_SIGNER=test`, which uses a public test key for lab use only.
-- **Recompute from the archive.** `rebuildSightings` (`lib/prevalence-rebuild.ts`) recomputes the
+- **Recompute from the archive.** `rebuildSightings` (`lib/prevalence/rebuild.ts`) recomputes the
   counters from the [telemetry archive](../datalake/README.md) with the same functions ingest uses,
   and `compareSightings` reports the differences with the table. It reads and compares only;
   nothing rewrites the table. A rebuild cannot reach events the archive dropped or deleted.
@@ -35,6 +35,6 @@ something an attacker cannot reproduce offline.
 Opt-in global (cross-tenant) prevalence, which would only ever be aggregated, k-anonymous
 statistics. Per-tenant data stays per-tenant.
 
-Code: `lib/prevalence.ts`, `lib/fleet-prevalence.ts`, `lib/common-set-snapshot.ts`,
-`lib/snapshot-publish.ts`, `app/api/prevalence/`. Tests: `tests/integration/prevalence*.test.ts`,
+Code: `lib/prevalence/prevalence.ts`, `lib/prevalence/fleet.ts`, `lib/content/common-set-snapshot.ts`,
+`lib/content/snapshot-publish.ts`, `app/api/prevalence/`. Tests: `tests/integration/prevalence*.test.ts`,
 `snapshot-delivery.test.ts`, `tests/unit/common-set-snapshot.test.ts`.

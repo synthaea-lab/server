@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { requireConsoleTenant } from "@/lib/console-session";
+import { requireConsoleTenant } from "@/lib/access/console-session";
 import { NoOrganization } from "@/components/NoOrganization";
 import { channelView } from "@/lib/notify/channels";
 import { currentKey } from "@/lib/notify/secret";

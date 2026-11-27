@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { lookupSession } from "@/lib/session-lookup";
+import { lookupSession } from "@/lib/access/session-lookup";
 
 // The middleware runs in Next's Edge runtime, where Prisma (and so better-auth's database
 // adapter) cannot run. It asks the Node route `/api/auth/get-session` instead (#810).

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Prisma } from "@prisma/client";
-import { HuntValidationError } from "@/lib/hunt";
+import { HuntValidationError } from "@/lib/hunt/hunt";
 import {
   caseConditions,
   decodeCursor,
@@ -8,7 +8,7 @@ import {
   parseCaseQuery,
   parseSearchRequest,
   searchFailure,
-} from "@/lib/hunt-search";
+} from "@/lib/hunt/search";
 
 const caseQuery = { kind: "cases", version: 1, lastHours: 48 };
 const huntQuery = { version: 1, lastHours: 24 };

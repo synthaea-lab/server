@@ -12,7 +12,7 @@ vi.mock("next/navigation", () => ({
   },
 }));
 
-import { requireConsoleTenant } from "@/lib/console-session";
+import { requireConsoleTenant } from "@/lib/access/console-session";
 
 const signedIn = (activeOrganizationId: string | null) => ({
   session: { activeOrganizationId },

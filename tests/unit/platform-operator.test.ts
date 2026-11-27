@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { requirePlatformOperator } from "@/lib/platform-operator";
+import { requirePlatformOperator } from "@/lib/access/platform-operator";
 
 const asUser = (id: string) => new NextRequest("http://localhost/x", { headers: { "x-user-id": id } });
 

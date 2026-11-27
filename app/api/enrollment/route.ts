@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireTenantAdmin } from "@/lib/admin-auth";
+import { requireTenantAdmin } from "@/lib/access/admin-auth";
 import { z } from "zod";
 
 const EnrollmentSchema = z.object({

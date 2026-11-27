@@ -1,5 +1,5 @@
-import { formatTime } from "@/lib/hunt-view";
-import type { CaseRow, DetectionRow, SearchPage } from "@/lib/hunt-search";
+import { formatTime } from "@/lib/hunt/view";
+import type { CaseRow, DetectionRow, SearchPage } from "@/lib/hunt/search";
 
 /**
  * The rows of one page of a search (#61). Plain server markup: every string is rendered as text,
