@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { beaconTime, parseHeartbeatBody } from "@/lib/health-beacon";
+import { MAX_STORABLE_COUNTER, beaconTime, parseHeartbeatBody } from "@/lib/health-beacon";
 import { loadFleet } from "@/lib/fleet";
 import {
   LOSS_WINDOW_MS,
@@ -127,6 +127,18 @@ describe("parseHeartbeatBody", () => {
       expect(parseHeartbeatBody({ beacon: beacon({ [field]: "3" }) }), `${field} "3"`).toBeNull();
     }
     expect(parseHeartbeatBody({ beacon: beacon({ agent_version: "v".repeat(129) }) })).toBeNull();
+  });
+
+  it("saturates a counter that would overflow a Postgres BIGINT at the largest storable value", () => {
+    const parsed = parseHeartbeatBody({ beacon: beacon({ spool_dropped: 2 ** 63, watchdog_restarts: 2 ** 64 }) });
+    expect([parsed?.spool_dropped, parsed?.watchdog_restarts]).toEqual([MAX_STORABLE_COUNTER, MAX_STORABLE_COUNTER]);
+    expect(BigInt(MAX_STORABLE_COUNTER)).toBe(BigInt("9223372036854774784")); // 2^63 − 1024
+  });
+
+  it("keeps a counter at the largest storable value, and a nanosecond timestamp, unchanged", () => {
+    const parsed = parseHeartbeatBody({ beacon: beacon({ spool_dropped: MAX_STORABLE_COUNTER }) });
+    expect(parsed?.spool_dropped).toBe(MAX_STORABLE_COUNTER);
+    expect(parsed?.timestamp_ns).toBe(1_790_000_000_000_000_000);
   });
 });
 

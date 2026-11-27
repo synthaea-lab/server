@@ -4,7 +4,23 @@ import { z } from "zod";
 const MAX_SENSORS = 64;
 const MAX_NAME = 128;
 
-const counter = z.number().int().nonnegative().finite();
+/**
+ * The largest counter a beacon stores. Counters are Postgres `BIGINT` (at most 2^63 − 1), and a
+ * larger one would make the upsert throw and the whole beacon be dropped, loss stamp included.
+ * 2^63 − 1024 is the largest double below 2^63, so it is the largest JSON number that fits.
+ *
+ * A counter above it saturates here rather than failing the parse: the beacon is still stored,
+ * and an absurd loss counter still reads as rising loss. A rejected beacon would be dropped
+ * without trace, since the heartbeat answers 200 whatever happens to its beacon.
+ */
+export const MAX_STORABLE_COUNTER = 2 ** 63 - 1024;
+
+const counter = z
+  .number()
+  .int()
+  .nonnegative()
+  .finite()
+  .transform((value) => Math.min(value, MAX_STORABLE_COUNTER));
 
 /**
  * One serialized `schema::HealthBeacon` (what `transport` posts as

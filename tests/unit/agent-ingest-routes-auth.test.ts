@@ -32,8 +32,11 @@ const routes = [
   ["decoy", decoy],
 ] as const;
 
-const call = (route: (req: NextRequest) => Promise<Response>, headers: Record<string, string>) =>
-  route(new NextRequest("http://localhost/api/ingest/x", { method: "POST", headers, body: "{}" }));
+const call = (
+  route: (req: NextRequest) => Promise<Response>,
+  headers: Record<string, string>,
+  body: unknown = {}
+) => route(new NextRequest("http://localhost/api/ingest/x", { method: "POST", headers, body: JSON.stringify(body) }));
 
 const answer = async (res: Response) => ({ status: res.status, body: await res.json() });
 
@@ -108,5 +111,25 @@ describe("POST /api/ingest/heartbeat", () => {
     expect(db.agent.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { lastSeen: expect.any(Date) } })
     );
+  });
+
+  it("stores a beacon whose counter would overflow a BIGINT, with that counter saturated", async () => {
+    db.agentHealth.findUnique.mockResolvedValue(null);
+    db.agentHealth.upsert.mockResolvedValue({});
+    const beacon = {
+      timestamp_ns: 1_790_000_000_000_000_000,
+      agent_version: "0.1.0",
+      sensors: [],
+      spool_bytes: 0,
+      spool_dropped: 2 ** 64,
+      enrich_dropped: 0,
+    };
+
+    expect((await call(heartbeat, valid, { agent_id: "agent-1", beacon })).status).toBe(200);
+    expect(db.agentHealth.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ create: expect.objectContaining({ spoolDropped: BigInt("9223372036854774784") }) })
+    );
+    expect(db.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(console.error).not.toHaveBeenCalled();
   });
 });
