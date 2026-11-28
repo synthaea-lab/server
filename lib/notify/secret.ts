@@ -3,7 +3,7 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 /**
  * A channel's signing secret is used (to sign), so it cannot be a hash: it is stored with
  * AES-256-GCM under a server key, the channel id as associated data, and the key id kept next
- * to the ciphertext so the key can rotate (ADR-0036 point 5).
+ * to the ciphertext so the key can rotate.
  *
  * `NOTIFY_SECRET_KEY` is `<keyId>:<64 hex>`; `NOTIFY_SECRET_KEY_PREVIOUS` may hold older keys,
  * comma-separated in the same form, for decryption only. An unset key disables channel

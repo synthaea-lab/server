@@ -205,7 +205,7 @@ describe("POST /api/content/release: nothing is published that an agent could no
   it("publishes a corrective release over a modified path with nothing restored first (#804)", async () => {
     // Release 2 uploaded RULE_V2 under its own hash; release 4 later changed rules/x.sigma
     // and uploaded RULE_V4 under ITS hash — content-addressed, so this never touched RULE_V2's
-    // bytes. A corrective release naming RULE_V2's hash for rules/x.sigma again (ADR-0032)
+    // bytes. A corrective release naming RULE_V2's hash for rules/x.sigma again
     // needs nothing put back: those bytes never moved.
     const manifest = manifestFor(); // lists RULE_V2's hash for rules/x.sigma
     store(manifest, GOOD_ARTIFACTS); // RULE_V2 and OTHER, as release 2 (or the test fixture) uploaded them

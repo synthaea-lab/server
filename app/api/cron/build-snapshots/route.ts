@@ -6,7 +6,7 @@ import { loadSnapshotSigner } from "@/lib/content/snapshot-manifest";
 
 /**
  * GET /api/cron/build-snapshots
- * Scheduled job (ADR-0033, #76 box 2): builds, guards, signs and stores each tenant's common-set
+ * Scheduled job (#76 box 2): builds, guards, signs and stores each tenant's common-set
  * snapshot. Meant to run daily. Without a configured signer (`SYNTHAEA_SNAPSHOT_SIGNER`, today only
  * the public test key) it builds nothing and answers 503: the endpoints then have nothing to serve
  * and agents keep what they have. One tenant's failure does not stop the others.

@@ -24,7 +24,7 @@ const RollbackSchema = z.object({
  * If targetVersion is not specified, rolls back to the immediate previous version.
  *
  * This only helps agents that have not applied the rolled-back release yet: an agent never
- * goes to a lower release number, so one that already applied it stays on it (ADR-0032). The
+ * goes to a lower release number, so one that already applied it stays on it. The
  * response says so and names the corrective release that withdraws the content from them.
  *
  * Authentication: better-auth session, `owner` or `admin` member of the tenant (#803)

@@ -2,7 +2,7 @@ import { loadReleaseArtifact, loadReleaseManifest } from "@/lib/content/release-
 import type { ReleaseManifest } from "@/lib/content/release-manifest";
 
 /**
- * Publish-time checks for a binary release (ADR-0015, #30), the counterpart of
+ * Publish-time checks for a binary release (#30), the counterpart of
  * `lib/content/publish.ts#validatePublishable`: nothing is published that an agent could not
  * install. The Ed25519 signature is not checked here (the server never holds the key); every
  * agent verifies it before staging.

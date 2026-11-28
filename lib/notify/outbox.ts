@@ -13,7 +13,7 @@ import { sendWebhook, type SendResult } from "./send";
 import { signBody } from "./sign";
 
 /**
- * The notification outbox (ADR-0036 point 3, #863). Producing an event writes a row;
+ * The notification outbox (#863). Producing an event writes a row;
  * `deliverDue` (the cron) claims due rows under a lease and sends them. Nothing here is on
  * the request path of a beacon or a hunt run.
  */
@@ -507,7 +507,7 @@ export async function failedCounts(
   return new Map(rows.map((r) => [r.channelId, { resendable: Number(r.resendable), superseded: Number(r.superseded) }]));
 }
 
-/** A deleted hunt drops out of the hunt lists that hold it (ADR-0036 point 2). */
+/** A deleted hunt drops out of the hunt lists that hold it. */
 export async function dropHuntFromChannels(
   db: Pick<PrismaClient, "$executeRaw">,
   tenantId: string,

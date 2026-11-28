@@ -1,5 +1,5 @@
 /**
- * Binary release manifest (ADR-0015, issue #30's update trigger): the signed
+ * Binary release manifest (issue #30's update trigger): the signed
  * list of files that make up one agent release. This is the wire shape of
  * `crates/updater::ReleaseManifest` — the Rust agent is what verifies the
  * Ed25519 signature; the server stores and serves the manifest as signed

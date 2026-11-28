@@ -2,7 +2,7 @@ import { mkdir, readdir, readFile, rename, rmdir, stat, unlink, writeFile } from
 import path from "node:path";
 
 /**
- * Where the telemetry lake's files go (issue #77, ADR-0041). The ADR makes the S3 API the
+ * Where the telemetry lake's files go (issue #77). The lake design makes the S3 API the
  * interface; the directory store is the only one built, so a lake can run on a mounted volume and
  * the writer and the retention job can be tested without a service. An S3 store implements the
  * same three methods.
@@ -36,7 +36,7 @@ export class LakeNotDeletableError extends Error {
 }
 
 /**
- * What the query side needs from a store (issue #77, ADR-0041, decision 4): list a prefix and read
+ * What the query side needs from a store (issue #77): list a prefix and read
  * a file. It is separate from {@link LakeStore} so that the writer's and the retention job's
  * credentials are not the reader's: an S3 reader should be built on read-only credentials.
  */

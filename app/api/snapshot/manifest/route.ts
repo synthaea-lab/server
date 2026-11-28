@@ -5,7 +5,7 @@ import { SnapshotManifest } from "@/lib/content/snapshot-manifest";
 
 /**
  * GET /api/snapshot/manifest
- * Agent endpoint (ADR-0033): the signed manifest of the agent's own tenant's common-set
+ * Agent endpoint: the signed manifest of the agent's own tenant's common-set
  * snapshot. 404 when none has been published (signing not configured, or no build passed the
  * guards yet): the agent keeps what it has. The agent verifies the signature against the
  * `snapshot` key; the tenant comes from the certificate, never from the request.

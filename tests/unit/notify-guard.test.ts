@@ -36,7 +36,7 @@ describe("isPrivateAddress", () => {
   });
 });
 
-describe("the special-purpose ranges (IANA registries, ADR-0036 point 6: the ADR's list is a minimum)", () => {
+describe("the special-purpose ranges (IANA registries, the notification design's list is a minimum)", () => {
   const v4 = (n: number) => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join(".");
   const edges4 = (cidr: string) => {
     const [a, len] = cidr.split("/");

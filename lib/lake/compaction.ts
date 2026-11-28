@@ -5,7 +5,7 @@ import type { LakeReader, LakeStore } from "@/lib/lake/store";
 import { dayOf, encodeParquet, isPastRetention, type LakeRow } from "@/lib/lake/writer";
 
 /**
- * Compaction of the telemetry lake (issue #4, ADR-0041 decision 3). The writer puts one small file
+ * Compaction of the telemetry lake (issue #4). The writer puts one small file
  * per (tenant, day, type) per flush; this merges the small files of a closed day into one.
  *
  * Which partitions: a day strictly before today (UTC), of a tenant that keeps events, and not one the

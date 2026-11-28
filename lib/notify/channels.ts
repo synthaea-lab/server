@@ -12,7 +12,7 @@ export function isEvent(e: string): boolean {
 }
 
 /**
- * What a signed-in member may see of a channel (ADR-0036 point 8): that it exists and
+ * What a signed-in member may see of a channel: that it exists and
  * whether it works. The URL is shown as its host only (it is stored sealed, its path is often a
  * credential); the secret and the ciphertexts never.
  */

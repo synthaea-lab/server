@@ -42,7 +42,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         { status: 422 }
       );
     }
-    // A stored query that no longer parses (ADR-0025 point 4) is the hunt's fault, not the request's.
+    // A stored query that no longer parses is the hunt's fault, not the request's.
     let query;
     try {
       query = parseSavedHuntQuery(hunt.query);

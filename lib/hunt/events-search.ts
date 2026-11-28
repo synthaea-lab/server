@@ -6,8 +6,8 @@ import { MAX_ROWS, queryLake, type LakeRow } from "@/lib/lake/query";
 import type { EventArchive } from "@/lib/lake/store";
 
 /**
- * Ad-hoc search over the raw event archive (#933, ADR-0025 point 10): the third source of the hunt
- * search, read through `queryLake` (ADR-0041). Read-only, one page, newest first.
+ * Ad-hoc search over the raw event archive (#933): the third source of the hunt
+ * search, read through `queryLake`. Read-only, one page, newest first.
  *
  * The same bounds as the Postgres sources, in the form this source can take:
  * - **Time.** A search runs under `HUNT_STATEMENT_TIMEOUT_MS`. There is no SQL statement to cancel,

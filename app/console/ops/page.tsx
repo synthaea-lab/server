@@ -265,7 +265,7 @@ function IngestPanel({
  * Telemetry archive queue (issue #4). The oldest batch is flagged past the age at which the
  * `detect-lake-backlog` cron opens a case (`DEFAULT_BACKLOG_MAX_AGE_MS`, same `>` boundary; a
  * `LAKE_BACKLOG_MAX_AGE_MINUTES` override applies to the case, not to this flag). The queue itself
- * stays unbounded: ADR-0041.
+ * stays unbounded: The lake design.
  */
 function LakeBacklogPanel({ backlog }: { backlog: LakeBacklog }) {
   const stale = backlog.oldestAgeMs !== null && backlog.oldestAgeMs > DEFAULT_BACKLOG_MAX_AGE_MS;

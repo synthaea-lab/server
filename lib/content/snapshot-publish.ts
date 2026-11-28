@@ -10,7 +10,7 @@ import {
 } from "@/lib/content/snapshot-manifest";
 
 /**
- * Builds, guards, signs and stores one tenant's common-set snapshot (ADR-0033, #76 box 2). One
+ * Builds, guards, signs and stores one tenant's common-set snapshot (#76 box 2). One
  * row per tenant: the latest. The numbers below are provisional starting points; calibrating
  * them on lab data is slice 6, and each can be set per call or from the environment.
  */
@@ -24,7 +24,7 @@ export type SnapshotParams = {
   /** Most hashes one build may read; more is a refusal, never a truncation. */
   maxEntries: number;
   /** A build whose entry count falls below this fraction of the previous one is refused,
-   * unless the hosts covered fell too (a truncated build, ADR-0033 decision 3). */
+   * unless the hosts covered fell too (a truncated build). */
   minEntryFraction: number;
 };
 
@@ -57,7 +57,7 @@ export type PublishOutcome =
 type Previous = { builtAt: Date; hostsCovered: number; entryCount: number } | null;
 
 /**
- * The guards run before a signature is requested (ADR-0033 decision 3), so a failure leaves
+ * The guards run before a signature is requested, so a failure leaves
  * the previous snapshot served, to age out normally. `null` means the build may go ahead.
  */
 export function guardFailure(
@@ -105,7 +105,7 @@ export async function publishCommonSetSnapshot(
   if (early) return { status: "skipped", reason: early };
 
   const { hashes, truncated } = await getCommonHashes(db, tenantId, params.minHosts, params.maxEntries);
-  // A filter missing common hashes reads them as rare: refuse, never drop (ADR-0020).
+  // A filter missing common hashes reads them as rare: refuse, never drop.
   if (truncated) {
     return { status: "skipped", reason: `more than ${params.maxEntries} common hashes: raise K or the entry cap` };
   }

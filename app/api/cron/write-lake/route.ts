@@ -7,7 +7,7 @@ import { DEFAULT_MAX_BATCHES, drainLakeQueue } from "@/lib/lake/writer";
 
 /**
  * GET /api/cron/write-lake
- * Scheduled job: drains the telemetry lake queue into Parquet files (issue #77, ADR-0041). Takes
+ * Scheduled job: drains the telemetry lake queue into Parquet files (issue #77). Takes
  * at most LAKE_WRITER_MAX_BATCHES queued batches (default 200) per call; the response says how many
  * are left, so a schedule that does not keep up shows as a `remaining` that grows.
  *

@@ -1,5 +1,5 @@
 /**
- * CSV source for the IOC feed builder (issue #60, ADR-0038).
+ * CSV source for the IOC feed builder (issue #60).
  *
  * Reads a threat-intelligence feed published as CSV (RFC 4180: quoted fields, `""` for a quote,
  * CRLF or LF, a newline inside quotes) and hands its indicators to {@link buildFeedFromLines}, so a

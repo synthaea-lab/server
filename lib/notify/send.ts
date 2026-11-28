@@ -3,7 +3,7 @@ import { isIP } from "node:net";
 import { NotifyBlockedError, resolvePublicTarget, type GuardOptions } from "./guard";
 
 /**
- * The coarse classes a tenant may see (ADR-0036 point 6): never the finer cause. A name that does
+ * The coarse classes a tenant may see: never the finer cause. A name that does
  * not resolve and one that resolves to a refused address are both `blocked`, so a tenant cannot
  * tell the server's internal DNS from a miss; the finer reason goes to the server log.
  */

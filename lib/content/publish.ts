@@ -79,7 +79,7 @@ export function iocEntryError(entry: { path: string; type: string }, stored: Buf
  *
  * The store (`storage/artifacts/<sha256>`, #804) is keyed by content hash, not by path: a
  * release that lists content an earlier release later modified (a corrective release over a
- * changed path, ADR-0032) needs nothing restored first, since the earlier bytes never moved —
+ * changed path) needs nothing restored first, since the earlier bytes never moved —
  * they are still sitting under their own hash, wherever they were first uploaded. The only way
  * this still refuses (422) is an artifact that was genuinely never uploaded under the hash the
  * manifest lists.

@@ -4,7 +4,7 @@ import { loadKeyRotation } from "@/lib/content/key-rotation";
 
 /**
  * GET /api/release/key-rotation
- * Agent endpoint: the key rotation pending for this agent's ring (ADR-0027), signed offline by
+ * Agent endpoint: the key rotation pending for this agent's ring, signed offline by
  * the `recovery` key. 404 when nothing is pending.
  *
  * The server only serves a file an operator placed under `storage/key-rotations/<ring>.json`: it

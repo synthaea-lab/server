@@ -171,7 +171,7 @@ export async function getPrevalence(
 
 /**
  * The sha256 keys of a tenant seen on at least `minHosts` distinct hosts: the members of the
- * common-set snapshot (ADR-0020, `lib/content/common-set-snapshot.ts`). At most `limit` are returned,
+ * common-set snapshot (`lib/content/common-set-snapshot.ts`). At most `limit` are returned,
  * most widespread first; `truncated` says there were more, which a caller building a snapshot
  * must treat as a failure, not drop: a filter missing common hashes reads them as rare.
  */

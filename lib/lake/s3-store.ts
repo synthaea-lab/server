@@ -9,13 +9,13 @@ import {
 import { assertSafeKey, LakeNotDeletableError, type DeleteResult, type LakeReader, type LakeStore } from "@/lib/lake/store";
 
 /**
- * The lake on an S3-compatible object store (issue #77, ADR-0041): AWS S3, or MinIO in the
+ * The lake on an S3-compatible object store (issue #77): AWS S3, or MinIO in the
  * self-hosted compose. Same three methods as the directory store, so the writer and the retention
  * job do not know which one they have.
  *
  * Versioning must be off on the bucket: on a versioned bucket a delete leaves a delete marker and
  * the bytes stay, and `lake_deletions` would say "verified empty" about a prefix whose objects still
- * exist. `assertDeletable` checks it once per retention run and fails closed (ADR-0041, section 5):
+ * exist. `assertDeletable` checks it once per retention run and fails closed (section 5):
  * `Enabled`, `Suspended` (earlier versions are kept) and a status that cannot be read all refuse.
  * It needs `s3:GetBucketVersioning` on the credentials the retention job uses.
  */
@@ -52,7 +52,7 @@ class S3Keys {
 }
 
 /**
- * The query side of the lake on S3 (issue #1105, ADR-0041, decision 4). It is its own class, built on
+ * The query side of the lake on S3 (issue #1105). It is its own class, built on
  * its own client, and can only issue `ListObjectsV2` and `GetObject`: it has no write method to
  * misuse, and the credentials it is given should be read-only (`s3:ListBucket`, `s3:GetObject`),
  * ideally scoped to a tenant prefix, never the writer's.

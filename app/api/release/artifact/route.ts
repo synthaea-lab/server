@@ -5,7 +5,7 @@ import { loadReleaseArtifact, loadReleaseManifest } from "@/lib/content/release-
 
 /**
  * GET /api/release/artifact?release_version=N&path=P[&sha256=H]
- * Agent endpoint: one file of an active binary release (ADR-0015, issue #30).
+ * Agent endpoint: one file of an active binary release (issue #30).
  *
  * Only paths the release's own manifest lists are served (an allowlist, not a
  * traversal filter), and only from an active release of the agent's own ring.

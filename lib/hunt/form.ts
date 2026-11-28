@@ -110,7 +110,7 @@ export function huntFormToBody(values: HuntFormValues): HuntFormResult {
 }
 
 /**
- * A stored hunt as form fields. A stored query that no longer parses (ADR-0025 point 4)
+ * A stored hunt as form fields. A stored query that no longer parses
  * opens as the default query (last 7 days, no filter), so saving the form repairs the hunt;
  * [`huntQueryIsValid`] tells the page to warn about it.
  */

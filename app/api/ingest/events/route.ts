@@ -24,7 +24,7 @@ const MAX_EVENTS_PER_BATCH = 1000;
  * Response: `{ accepted, batch_id }`, the shape `transport::UploadResponse` reads.
  *
  * Events are counted into fleet prevalence (issue #76). With `LAKE_DIR` set they are also queued
- * for the telemetry lake (issue #77, ADR-0041, `lib/lake/writer.ts`); without it an accepted event
+ * for the telemetry lake (issue #77, `lib/lake/writer.ts`); without it an accepted event
  * is not retained. The agent drops a spooled segment once it gets a 2xx, which with the lake on
  * means "durably queued", not "written to the lake".
  */

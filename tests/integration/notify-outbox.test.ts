@@ -197,7 +197,7 @@ describe("notification outbox", () => {
   });
 });
 
-describe("delivery outcomes, ordering and housekeeping (ADR-0036 points 3, 5, 7)", () => {
+describe("delivery outcomes, ordering and housekeeping (the notification design points 3, 5, 7)", () => {
   let tenantId: string;
   const ok = async () => ({ ok: true, statusCode: 204 });
   beforeEach(async () => {

@@ -201,7 +201,7 @@ export function draftDownloadName(path: string): string {
   return path.slice(path.lastIndexOf("/") + 1);
 }
 
-/** What the browser asks before a hunt is deleted: the run history goes with it (ADR-0025). */
+/** What the browser asks before a hunt is deleted: the run history goes with it. */
 export function deleteConfirmation(name: string): string {
   return `Delete the hunt “${name}” and its run history? This cannot be undone.`;
 }

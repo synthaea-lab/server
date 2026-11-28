@@ -12,7 +12,8 @@ import { outranks } from "@/lib/cases/severity";
  * graph of its detections agree on what an entity is.
  *
  * The join is an attack surface: an attacker who can make a detection fire on a host can try to
- * link hosts they do not control into one case, and ADR-0035 Decision 6 makes a fleet case the
+ * link hosts they do not control into one case, and the posture-overlay design (never built) makes
+ * a fleet case the
  * trigger of a posture overlay. So the join is deliberately narrow:
  * - only a **hash** or an **identity**, never a bare path or a technique;
  * - the generic accounts every host has (`root`, `SYSTEM`...) are not an identity worth joining on;

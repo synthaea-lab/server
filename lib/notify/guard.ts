@@ -3,7 +3,7 @@ import type { Env } from "./secret";
 import { isIP } from "node:net";
 
 /**
- * The SSRF guard of the notification channel (ADR-0036 point 6, #863).
+ * The SSRF guard of the notification channel (#863).
  *
  * A channel URL is chosen by a tenant admin and called by the server, so it must not be
  * a way into the server's own network. The caller resolves the name once with
@@ -80,8 +80,8 @@ function parseV6(text: string): number[] | null {
 /**
  * The ranges a tenant-chosen URL may not reach, taken from the IANA special-purpose address
  * registries (IPv4: iana.org/assignments/iana-ipv4-special-registry, IPv6:
- * iana.org/assignments/iana-ipv6-special-registry; read 2026-10-19) and not only from the ADR's
- * list, which is a minimum. Every entry that is not globally reachable is here, and so are the
+ * iana.org/assignments/iana-ipv6-special-registry; read 2026-10-19) and not only from the notification
+ * design's list, which is a minimum. Every entry that is not globally reachable is here, and so are the
  * few that are (the AS112 and AMT anycast prefixes, the PCP and TURN anycast addresses): no
  * webhook receiver lives there, so refusing them costs nothing and keeps the table simple. An
  * address that embeds an IPv4 (mapped, translated, NAT64, 6to4, IPv4-compatible) is judged by
@@ -257,7 +257,7 @@ export interface GuardOptions {
   extraPorts?: ReadonlySet<number>;
   /**
    * `<tenant id>:<host>` entries a server operator allowed to resolve to private addresses
-   * (NOTIFY_ALLOWED_PRIVATE_HOSTS, ADR-0036 point 6): a tenant cannot aim a channel at another
+   * (NOTIFY_ALLOWED_PRIVATE_HOSTS): a tenant cannot aim a channel at another
    * tenant's on-prem host, and there is no wildcard tenant.
    */
   allowedPrivateHosts?: ReadonlySet<string>;

@@ -1,6 +1,6 @@
 /**
  * Turns one threat-intelligence source into the artifacts of an `ioc` content release
- * (issue #60, ADR-0038): `ioc/<feed>.txt` and, optionally, `ioc/VERSION`, each with the manifest
+ * (issue #60): `ioc/<feed>.txt` and, optionally, `ioc/VERSION`, each with the manifest
  * entry that lists it.
  *
  * This is the step between a source (plain `kind:value` text, CSV, a STIX bundle or a MISP export) and the unsigned content

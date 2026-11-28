@@ -1,5 +1,5 @@
 /**
- * The common-set snapshot (ADR-0020, issue #76): the image hashes seen on at least K hosts of
+ * The common-set snapshot (issue #76): the image hashes seen on at least K hosts of
  * one tenant, as a Bloom filter the agent checks locally. Layout, hashing and sizing are
  * fixed by this module; the Rust reader and a Python
  * reference are held to the same bytes by `ml/tests/fixtures/common_set_snapshot_golden.json`.

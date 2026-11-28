@@ -12,7 +12,8 @@ import { isSeverity, severityRank } from "@/lib/cases/severity";
  * hunt's `text` when it is in the command line). A person reviews every draft, it enters
  * the normal PR and CI path, and nothing here merges or ships content.
  *
- * The draft is two files, laid out as `rules/sigma/README.md` and ADR-0031 want them:
+ * The draft is two files, laid out as `rules/sigma/README.md` and the rule-samples convention want
+ * them:
  * `<rule>.yml` and `<rule>.samples.json`. It is checked here the way the engine will check
  * it (`crates/sigma/src/validate.rs`, `eval.rs`): the sample must fire and the negative must
  * not. A draft that cannot be made says why, in `problems`.

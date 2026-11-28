@@ -189,7 +189,7 @@ describe("fleet health against a real database (issue #83)", () => {
     });
   });
 
-  it("stores the rarity evidence counters and shows them in the fleet view (ADR-0020, #76)", async () => {
+  it("stores the rarity evidence counters and shows them in the fleet view (#76)", async () => {
     const tenant = await createTestTenant();
     await createTestAgent(tenant.id, "agent-h5");
     await beat("agent-h5", {

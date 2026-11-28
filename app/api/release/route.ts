@@ -17,7 +17,7 @@ const CreateReleaseSchema = z.object({
 
 /**
  * POST /api/release
- * Admin endpoint: publish a signed binary release to a ring (ADR-0015, #30).
+ * Admin endpoint: publish a signed binary release to a ring (#30).
  *
  * Authentication: better-auth session, `owner` or `admin` member of the tenant (#837).
  * Request body: { ring, releaseVersion, manifestUrl, manifestSha256, releasedAt? }

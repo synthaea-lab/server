@@ -86,7 +86,8 @@ describe("ad-hoc search over detections and cases (real database)", () => {
   });
 
   // `parseDetectionPayload` stores a structured detection's title in `meta.title` and its first
-  // triggering event in `event`: the rule title is the first, never a field of the second (ADR-0025
+  // triggering event in `event`: the rule title is the first, never a field of the second (the
+  // saved-hunts design
   // point 9). The seeds below use that storage layout, with a different, sensitive `event.title`.
   it("returns the rule title from meta and never the event's own title field", async () => {
     const tenant = await createTestTenant();

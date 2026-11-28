@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 /**
- * `X-Synthaea-Signature: t=<unix>,v1=<hex HMAC-SHA256 of "<t>.<body>">` (ADR-0036 point 5).
+ * `X-Synthaea-Signature: t=<unix>,v1=<hex HMAC-SHA256 of "<t>.<body>">`.
  * Every delivery attempt is signed with a fresh `t`, so a retry hours later passes a receiver's
  * freshness check.
  *
