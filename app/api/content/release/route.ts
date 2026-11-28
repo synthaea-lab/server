@@ -13,7 +13,7 @@ const CreateReleaseSchema = z.object({
   manifestSha256: z.string().regex(/^[a-f0-9]{64}$/),
   releasedAt: z.string().datetime().optional(),
   // The release this one restores, when it is a corrective release answering a rollback's
-  // advice (ADR-0032): recorded in the audit entry, never checked against anything — the
+  // advice: recorded in the audit entry, never checked against anything — the
   // server has no independent way to tell a corrective release from an ordinary one, and the
   // caller is already admin-authenticated by the time this is read.
   restoresVersion: z.number().int().positive().optional(),

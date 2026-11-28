@@ -7,7 +7,7 @@ import { compactLake } from "@/lib/lake/compaction";
 /**
  * GET /api/cron/compact-lake
  * Scheduled job: merges the small files of closed days into one per (tenant, day, type) and records
- * each merge in `lake_compactions` (issue #4, ADR-0041 decision 3). Run it daily or less often, after
+ * each merge in `lake_compactions` (issue #4). Run it daily or less often, after
  * `write-lake`; running it more often only repeats nothing.
  *
  * Authentication: CRON_SECRET bearer (`verifyCronRequest`).

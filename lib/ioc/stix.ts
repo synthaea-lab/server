@@ -1,5 +1,5 @@
 /**
- * STIX 2.1 source for the IOC feed builder (issue #60, ADR-0038).
+ * STIX 2.1 source for the IOC feed builder (issue #60).
  *
  * Reads a STIX bundle (or a TAXII envelope: an object with an `objects` array) and hands the
  * indicators it can express to {@link buildFeedFromLines}, so a STIX feed goes through the same

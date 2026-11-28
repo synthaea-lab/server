@@ -3,7 +3,7 @@ import { enqueue } from "./outbox";
 import { consoleUrl } from "./urls";
 
 /**
- * `hunt.new_matches` (ADR-0036 point 2, slice 3, #863): called by `runHunt` once a run is
+ * `hunt.new_matches` (slice 3, #863): called by `runHunt` once a run is
  * recorded with `newMatchCount` above zero. Only a channel that lists the hunt receives it
  * (the subscription is the channel's, an admin decision). The payload is a pointer: the hunt's
  * name, the counts and the console link, never a match's contents.

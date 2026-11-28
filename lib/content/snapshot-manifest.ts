@@ -3,7 +3,7 @@ import { z } from "zod";
 import { sortKeysDeep } from "@/lib/content/manifest";
 
 /**
- * The signed manifest of a common-set snapshot (ADR-0033, issue #76 box 2). Its own document,
+ * The signed manifest of a common-set snapshot (issue #76 box 2). Its own document,
  * outside the content manifest and the rings: one tenant's snapshot, rebuilt on a cadence and
  * signed by the `snapshot` key, the only key that may sign this kind.
  *
@@ -36,7 +36,7 @@ export function canonicalSnapshotManifest(manifest: SnapshotManifest | Omit<Snap
 
 /**
  * Whatever holds the `snapshot` key. The control plane may *request* a signature and never
- * reads the key (ADR-0033 decision 2); the real implementation is a signing-only key service
+ * reads the key; the real implementation is a signing-only key service
  * and waits on the custody decision (#753). Until then only the public test key below exists.
  */
 export interface SnapshotSigner {

@@ -1,5 +1,5 @@
 /**
- * MISP source for the IOC feed builder (issue #60, ADR-0038).
+ * MISP source for the IOC feed builder (issue #60).
  *
  * Reads a MISP export (the JSON of `/events/restSearch` or of one event: `{"response": [{"Event":
  * ...}]}`, `{"Event": ...}` or a bare event) and hands the attributes the engine can match to

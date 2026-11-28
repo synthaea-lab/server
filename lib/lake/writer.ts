@@ -5,7 +5,7 @@ import { eventTime } from "@/lib/ingest/event-time";
 import type { LakeStore } from "@/lib/lake/store";
 
 /**
- * The telemetry lake's write path (issue #77, ADR-0041, section 3): ingest queues each accepted
+ * The telemetry lake's write path (issue #77, section 3): ingest queues each accepted
  * batch in Postgres (`LakeBatch`), and `drainLakeQueue` turns the queue into Parquet files laid
  * out `tenant=<id>/date=<YYYY-MM-DD>/type=<event_type>/<flush>.parquet`, one file per
  * (tenant, day, type) per drain.
@@ -41,8 +41,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Whether the UTC day `day` (`YYYY-MM-DD`) is `retentionDays` or more old at `now`: the retention
- * job deletes such a partition whole, and the writer must not put a file into it (ADR-0041,
- * decision 2). An unparseable day is never expired.
+ * job deletes such a partition whole, and the writer must not put a file into it. An
+ * unparseable day is never expired.
  */
 export function isPastRetention(day: string, retentionDays: number, now: Date): boolean {
   const at = Date.parse(`${day}T00:00:00.000Z`);
@@ -85,7 +85,7 @@ export type LakeRow = {
 
 /**
  * The source text of each element of the body's top-level `events` array, in order, or null when the
- * body has none. The `event` column is the event "byte for byte as received" (ADR-0041, decision 1):
+ * body has none. The `event` column is the event "byte for byte as received":
  * `JSON.parse` then `JSON.stringify` rounds every integer above 2^53, and `meta.timestamp_ns` (about
  * 1.8e18) always is, so the lake keeps the text the agent sent. The body must already be valid JSON
  * (the route parsed it); like `JSON.parse`, the last `events` key wins.

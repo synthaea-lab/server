@@ -1,5 +1,5 @@
 /**
- * Public-suffix check for the IOC feed builder (issue #60, ADR-0038).
+ * Public-suffix check for the IOC feed builder (issue #60).
  *
  * A listed domain covers every name beneath it, so one that is itself a public suffix (`co.uk`,
  * or a private one such as `blogspot.com`) would flag a whole registry or a hosting platform. This

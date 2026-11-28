@@ -6,7 +6,7 @@ import { CANARY_RINGS } from "@/lib/content/rings";
 
 const SILENCE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
-// Auto-halt criteria (from ADR-0016)
+// Auto-halt criteria (from the content-ring design)
 const MAX_SILENT_RATE = 0.05;           // 5% silent agents
 const MAX_FP_RATE_INCREASE = 2.0;       // 2× baseline FP rate
 const MAX_DETECTION_RATE_DROP = 0.20;   // 20% detection rate drop

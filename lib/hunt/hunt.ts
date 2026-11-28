@@ -23,7 +23,7 @@ export {
 } from "@/lib/hunt/fields";
 
 /**
- * Saved hunts (issue #61, ADR-0025).
+ * Saved hunts (issue #61).
  *
  * A hunt's `query` is a structured `HuntQuery`, never SQL. It is validated on every
  * write and compiled to parameterized SQL here, scoped to one tenant, so a hunt cannot

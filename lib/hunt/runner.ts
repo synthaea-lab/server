@@ -126,7 +126,7 @@ async function startAndExecute(
     const data = await executeRun(prisma, hunt, now, previous?.startedAt ?? null, options);
     const run = await prisma.huntRun.update({ where: { id: started.id }, data: { finishedAt: new Date(), ...data } });
     // After the run is recorded. `notifyHuntNewMatches` does not throw: a notification problem
-    // is logged, never a second (failed) run row for the same run (ADR-0036, #863).
+    // is logged, never a second (failed) run row for the same run (#863).
     await notifyHuntNewMatches(prisma, hunt, run);
     return run;
   } catch (error) {

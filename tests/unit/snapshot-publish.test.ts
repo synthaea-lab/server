@@ -6,7 +6,7 @@ const at = (s: number) => new Date(s * 1000);
 const prev = { builtAt: at(1000), hostsCovered: 10, entryCount: 100 };
 const build = { hostsCovered: 10, entryCount: 100, builtAt: 2000 };
 
-describe("guardFailure (ADR-0033 decision 3)", () => {
+describe("guardFailure", () => {
   it("lets a healthy build through, with or without a previous one", () => {
     expect(guardFailure(params, build, null)).toBeNull();
     expect(guardFailure(params, build, prev)).toBeNull();

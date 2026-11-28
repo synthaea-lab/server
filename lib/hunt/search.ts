@@ -23,7 +23,7 @@ import {
 import { parseEventQuery, type EventQuery } from "@/lib/hunt/events";
 
 /**
- * Ad-hoc search over the detection and case store (#61, ADR-0025). The raw event archive is a
+ * Ad-hoc search over the detection and case store (#61). The raw event archive is a
  * third source with its own page and runner, `lib/hunt/events-search.ts` (#933): it shares this
  * file's admission (`admitSearch`), request parsing and failure mapping, not its transaction.
  *

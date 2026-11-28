@@ -4,7 +4,7 @@ import { ACTIVE_CASE_STATUSES } from "@/lib/hunt/search";
 import type { LakeBacklog } from "@/lib/lake/backlog";
 
 /**
- * The alert for the telemetry lake's write queue (issue #4, ADR-0041). The queue (`lake_batches`)
+ * The alert for the telemetry lake's write queue (issue #4). The queue (`lake_batches`)
  * has no bound: a stuck writer or a down object store fills the Postgres disk. The ingest route is
  * not made to refuse uploads over it, because an agent that is refused may lose what it sent; the
  * queue grows, and this opens a case so someone looks before the disk is full.

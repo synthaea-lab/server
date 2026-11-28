@@ -1,8 +1,8 @@
 import { checkedList, expectKind, expectVersion, fail, queryRecord, windowField } from "@/lib/hunt/fields";
 
 /**
- * The query of the hunt `events` source: the raw event archive (the telemetry lake, issue #77,
- * ADR-0041), searched through `queryLake` (issue #933, ADR-0025 point 10).
+ * The query of the hunt `events` source: the raw event archive (the telemetry lake, issue #77),
+ * searched through `queryLake` (issue #933).
  *
  * Like `HuntQuery` and `CaseQuery` it is structured, never SQL, validated on every use, and refuses
  * unknown fields. It carries no tenant: the tenant is the session's and is given to the search by
@@ -12,7 +12,7 @@ import { checkedList, expectKind, expectVersion, fail, queryRecord, windowField 
  */
 
 export const EVENT_QUERY_VERSION = 1;
-/** Longest window, in UTC days: the lake's default retention (ADR-0041), and a hunt's own ceiling (90 days). */
+/** Longest window, in UTC days: the lake's default retention, and a hunt's own ceiling (90 days). */
 export const MAX_EVENT_WINDOW_DAYS = 90;
 /** Event types one query may name. */
 export const MAX_EVENT_TYPES = 20;

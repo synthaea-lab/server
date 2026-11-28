@@ -6,7 +6,7 @@ import { loadReleaseManifest } from "@/lib/content/release-manifest";
 /**
  * GET /api/release/manifest
  * Agent endpoint: the signed binary release manifest this agent is offered
- * (ADR-0015, issue #30). No ring in the path: the release is the latest active
+ * (issue #30). No ring in the path: the release is the latest active
  * one for the ring the server has assigned to this agent, so an agent cannot
  * ask for another ring's release.
  *

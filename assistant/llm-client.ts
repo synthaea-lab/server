@@ -1,11 +1,11 @@
 /**
- * Narrative LLM client (issue #50, ADR-0017): a minimal hand-written client
+ * Narrative LLM client (issue #50): a minimal hand-written client
  * against an OpenAI-compatible chat-completions endpoint. No vendor SDK —
  * swapping providers is an env var change, not a dependency change.
  *
  * Defaults point at a locally self-hosted endpoint (Ollama's OpenAI-compat
  * layer) so the feature works with zero external network calls out of the
- * box, per ADR-0001's self-hosting stance. Any OpenAI-compatible provider
+ * box, per the server stack choice's self-hosting stance. Any OpenAI-compatible provider
  * (OpenAI, or others via a compatibility shim) can be substituted by env
  * vars alone.
  *

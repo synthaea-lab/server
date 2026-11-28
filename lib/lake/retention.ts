@@ -4,13 +4,13 @@ import type { LakeStore } from "@/lib/lake/store";
 import { isPastRetention } from "@/lib/lake/writer";
 
 /**
- * The telemetry lake's retention job (issue #77, ADR-0041 section 5). A tenant's retention is
+ * The telemetry lake's retention job (issue #77, the lake design section 5). A tenant's retention is
  * `tenants.lake_retention_days`; a `date=` partition whose age in days (UTC, against `now`) has
  * reached it is deleted whole, and each deletion writes a `LakeDeletion` row: the tenant, the date,
  * how many files and bytes and a hash of the listing, then what really went, what did not, and
  * whether every file of that listing is gone afterwards (a file the writer added meanwhile is
  * recorded as `arrivedDuringDeletion` and left for the next run: it is not a failed deletion). "Provable" means that row; it does not reach the
- * storage provider's own backups or versioning (ADR-0041).
+ * storage provider's own backups or versioning.
  *
  * The row is written BEFORE the deletion and completed after it, so that a deletion which half
  * happens (a later batch fails, the process dies, the database goes away) leaves a record of what

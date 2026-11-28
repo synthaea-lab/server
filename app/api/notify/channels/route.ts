@@ -18,7 +18,7 @@ const CreateSchema = z.object({
 
 /**
  * GET /api/notify/channels — any signed-in member: which channels exist and whether they
- * work (host only, no secret). ADR-0036 point 8.
+ * work (host only, no secret). The notification design.
  */
 export async function GET(req: NextRequest) {
   try {

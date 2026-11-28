@@ -1,5 +1,5 @@
 /**
- * Key-rotation manifest (ADR-0027): the document the offline `recovery` key signs to replace the
+ * Key-rotation manifest: the document the offline `recovery` key signs to replace the
  * `release` and/or `content` key an agent trusts. This is the wire shape of
  * `crates/updater::KeyRotationManifest`. The server never signs one and never verifies the
  * signature (every agent does, against the `recovery` key it embeds); it serves the bytes of a

@@ -1,5 +1,5 @@
 /**
- * IOC feed builder (issue #60, ADR-0038).
+ * IOC feed builder (issue #60).
  *
  * Turns the text of one threat-intelligence feed into the file an agent loads from
  * `<content_root>/ioc/<feed>.txt`: one `sha256:<hex>`, `ip:<address>` or `domain:<name>` per line,

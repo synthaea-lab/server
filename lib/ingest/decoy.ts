@@ -232,7 +232,7 @@ const pending = new Set<Promise<void>>();
  * not (none), or a client can tell them apart by timing. The work is started, not awaited;
  * `reportDecoyUse` never throws, so nothing is left unhandled. On a long-running Node server
  * (`next start`) the promise lives on; on a platform that freezes the process after the
- * response it may be cut off, which is why the ADR names the deployment it assumes.
+ * response it may be cut off, which is why the deployment docs name the one it assumes.
  */
 export function scheduleDecoyReport(
   prisma: PrismaClient,

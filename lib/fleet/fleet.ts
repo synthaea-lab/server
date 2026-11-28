@@ -27,7 +27,7 @@ export type FleetAgent = {
     lossObservedAt: string | null;
     /** Within the window that makes the host `degraded` for telemetry loss. */
     recentLoss: boolean;
-    /** Rarity evidence applied, withheld and lost since the agent started (ADR-0020). */
+    /** Rarity evidence applied, withheld and lost since the agent started. */
     rarityApplied: number;
     rarityWithheld: number;
     rarityUnapplied: number;

@@ -15,7 +15,8 @@ import { ruleSlug, type GraduationDetection, type GraduationHunt, type Graduatio
  * person to keep or drop. It writes nothing and ships nothing.
  *
  * A listed domain matches every name beneath it, and the device carries no public-suffix list
- * (ADR-0038 section 6), so a queried name enters the set only if the feed builder's own rules accept
+ * (the IOC-matching design section 6), so a queried name enters the set only if the feed builder's
+ * own rules accept
  * it (`normalizeDomain`: ASCII, 2 to 8 labels, valid syntax) and it is not itself a public suffix
  * (`isPublicSuffix`, the check `buildFeed` makes). The name is listed as queried: a hunt that
  * matched `c2.evil.example` drafts that name, not its registrable parent.

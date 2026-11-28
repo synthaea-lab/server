@@ -1,12 +1,12 @@
 /**
- * Reads events back out of the telemetry lake (issue #77, ADR-0041, decision 4).
+ * Reads events back out of the telemetry lake (issue #77).
  *
  * A structured query, not SQL: a tenant, a range of UTC days, optionally event types and equality
  * filters on the typed columns, a row limit. It lists the partitions in range one day (and one type)
  * at a time, so a tenant's history outside the range is never listed (partition pruning is the path),
  * stops listing at {@link MAX_FILES} + 1 files, reads those with `hyparquet`
  * (pure JavaScript, so it runs in the server's Alpine image, where DuckDB's Node bindings have no
- * build, ADR-0041 "Findings") and filters the rows.
+ * build, the lake design "Findings") and filters the rows.
  *
  * **Tenant isolation is structural, in two layers that do not depend on each other.** Every listing
  * is under `tenant=<id>/` for an id that passes a closed character set, and every key a listing
@@ -19,7 +19,7 @@
  * was cut. The listing is bounded because the writer makes a file per flush, so a tenant's prefix has
  * no ceiling: the reader is asked for at most the files still wanted (`list(prefix, { limit })`). The cost is a scan
  * of every file in range: this is the engine for a hunt over days on one tenant, not for the fleet's
- * volume. DuckDB stays the planned engine for that (not measured, ADR "Measurements owed"); the
+ * volume. DuckDB stays the planned engine for that (not measured); the
  * result shape is what a hunt layer consumes, so the engine can change under it.
  *
  * Rows come back oldest first (by `ts`, then by file), or newest first with `order: "desc"`, and carry `event`, the event's source text as

@@ -1,5 +1,5 @@
 /**
- * Content Manifest Schema (extends ADR-0015 for non-binary artifacts)
+ * Content Manifest Schema (extends the updater design for non-binary artifacts)
  *
  * Supports canary-ring deployment of rules, models, and policy without
  * requiring binary updates. Mirrors updater manifest format for consistency.
@@ -19,7 +19,7 @@ export const ContentType = z.enum([
   "rule",   // Sigma YAML detection rule
   "model",  // ML model (pickle + model_record.json)
   "policy", // JSON policy configuration
-  "ioc",    // On-device IOC feed (#60, ADR-0038): `ioc/<feed>.txt` or `ioc/VERSION`
+  "ioc",    // On-device IOC feed (#60): `ioc/<feed>.txt` or `ioc/VERSION`
 ]);
 
 export type ContentType = z.infer<typeof ContentType>;
@@ -45,7 +45,7 @@ export type ContentEntry = z.infer<typeof ContentEntry>;
  * Content manifest — signed list of artifacts for a specific ring
  *
  * Example filename: content-canary_0-v42.json
- * Schema mirrors ADR-0015 binary manifest for consistency
+ * Schema mirrors the updater design binary manifest for consistency
  */
 export const ContentManifest = z.object({
   schema_version: z.literal(1),           // Schema version (strict validation, reject unknown)
@@ -153,7 +153,7 @@ export async function verifySignature(
 
 /**
  * Check if release version is newer than current
- * Prevents rollback attacks per ADR-0015 Decision 5
+ * Prevents rollback attacks per the updater design
  */
 export function isNewerRelease(
   current: number,

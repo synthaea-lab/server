@@ -37,7 +37,7 @@ model Tenant {
   notifications       Notification[]
   lakeBatches         LakeBatch[]
 
-  // Telemetry lake retention in days (issue #77, ADR-0041): 0 means the writer keeps nothing for
+  // Telemetry lake retention in days (issue #77): 0 means the writer keeps nothing for
   // this tenant. Read by the lake writer; the retention job is a later slice.
   lakeRetentionDays Int @default(90) @map("lake_retention_days")
 
@@ -81,7 +81,7 @@ model AgentHealth {
   // beacons, by its own clock (issue #83). The counters are cumulative since the agent started and
   // only the latest beacon is kept, so "recent loss" has to be remembered, not derived.
   lossObservedAt         DateTime? @map("loss_observed_at")
-  // The common-set rarity evidence counters (ADR-0020, issue #76); zero for an agent that
+  // The common-set rarity evidence counters (issue #76); zero for an agent that
   // predates them.
   rarityApplied          BigInt    @default(0) @map("rarity_applied")
   rarityWithheld         BigInt    @default(0) @map("rarity_withheld")
@@ -332,7 +332,7 @@ model ContentRelease {
 }
 
 // Binary release - a signed agent/watchdog/cli release offered to a ring's
-// agents (ADR-0015, issue #30's update trigger). The row points at the signed
+// agents (issue #30's update trigger). The row points at the signed
 // `ReleaseManifest` JSON (signed offline: the server never holds the private
 // key); artifacts live at `storage/releases/v<releaseVersion>/<path>`.
 model BinaryRelease {
@@ -454,7 +454,7 @@ model IngestStat {
 // the `HuntQuery` of lib/hunt/hunt.ts, validated on every write and compiled to
 // parameterized SQL, so a hunt cannot name a table or reach another tenant.
 // Result history is HuntRun; a hunt that keeps matching is what detection
-// content graduates from (#618). See ADR-0025.
+// content graduates from (#618). See the saved-hunts design.
 model Hunt {
   id              String   @id @default(uuid())
   tenantId        String   @map("tenant_id")
@@ -518,7 +518,7 @@ model HuntRun {
   @@map("hunt_runs")
 }
 
-// --- Console authentication (better-auth, ADR-0003, issue #810) ---------------------------
+// --- Console authentication (better-auth, issue #810) ---------------------------
 //
 // The tables better-auth reads and writes through `prismaAdapter` (`lib/auth.ts`), with its
 // own model and field names (`user`, `session`, ...), so `prisma db push` creates them with
@@ -644,7 +644,7 @@ model Invitation {
   @@map("auth_invitation")
 }
 
-// Operator notification channel (ADR-0036, #863): a signed webhook a tenant admin registered.
+// Operator notification channel (#863): a signed webhook a tenant admin registered.
 // The signing secret is sealed (AES-256-GCM, channel id as AAD); it is never returned.
 model NotificationChannel {
   id                  String    @id @default(uuid())
@@ -682,7 +682,7 @@ model NotificationChannel {
 }
 
 // The last state a channel was told about a subject (a host): per channel, not per agent, so a
-// channel in cooldown does not make another one miss a transition (ADR-0036 point 2). It
+// channel in cooldown does not make another one miss a transition. It
 // advances only when a row is enqueued for that channel.
 model NotificationState {
   channelId String   @map("channel_id")
@@ -729,7 +729,7 @@ model Notification {
   @@map("notifications")
 }
 
-// The tenant's latest common-set snapshot (ADR-0033, #76 box 2): the artifact bytes and the
+// The tenant's latest common-set snapshot (#76 box 2): the artifact bytes and the
 // signed manifest that names them. One row per tenant, replaced by each build; the agent fetches
 // both through /api/snapshot/*. The builder's guards compare a new build with this row.
 model CommonSetSnapshot {
@@ -751,7 +751,7 @@ model CommonSetSnapshot {
   @@map("common_set_snapshots")
 }
 
-// Telemetry lake queue (issue #77, ADR-0041, lib/lake/writer.ts): one row per accepted ingest
+// Telemetry lake queue (issue #77, lib/lake/writer.ts): one row per accepted ingest
 // batch, kept until the lake writer has written its events as Parquet and deleted the row. Only
 // filled when LAKE_DIR is set. The events are the batch as received, already checked to be
 // objects with a string `type`.
@@ -781,7 +781,7 @@ model LakeBatch {
   @@map("lake_batches")
 }
 
-// Telemetry lake deletions (issue #77, ADR-0041 section 5, lib/lake/retention.ts): one row per
+// Telemetry lake deletions (issue #77, the lake design section 5, lib/lake/retention.ts): one row per
 // `date=` prefix the retention job deleted, so that "provable deletion" has a record. The row is
 // written BEFORE the deletion (what was listed and is about to go: count, bytes, listing hash) and
 // completed after it (what really went, what did not, whether the prefix listed empty). A row with
@@ -819,7 +819,7 @@ model LakeDeletion {
   @@map("lake_deletions")
 }
 
-// One compaction of a (tenant, day, type) partition (issue #4, ADR-0041 decision 3): many small
+// One compaction of a (tenant, day, type) partition (issue #4): many small
 // files merged into one. Written BEFORE the merged file, completed after the inputs are deleted, so
 // a crash between the two leaves a row that the next run finishes (the output is there: delete the
 // inputs) or abandons (the output never landed: the inputs are untouched). No FK to the tenant,

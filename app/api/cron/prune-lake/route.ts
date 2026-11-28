@@ -8,7 +8,7 @@ import { LakeNotDeletableError } from "@/lib/lake/store";
 /**
  * GET /api/cron/prune-lake
  * Scheduled job: deletes the telemetry lake's `date=` partitions that have outlived their tenant's
- * `lake_retention_days`, and records each deletion in `lake_deletions` (issue #77, ADR-0041
+ * `lake_retention_days`, and records each deletion in `lake_deletions` (issue #77, the lake design
  * section 5). Run it once a day; running it more often only repeats nothing.
  *
  * Authentication: CRON_SECRET bearer (`verifyCronRequest`).

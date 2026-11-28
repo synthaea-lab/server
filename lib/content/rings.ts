@@ -3,7 +3,7 @@ import { z } from "zod";
 import { FLEET_PAGE_SIZE, loadFleet, type FleetAgent } from "@/lib/fleet/fleet";
 import type { FleetStatus } from "@/lib/fleet/health";
 
-/** The rings a release reaches before prod, in rollout order (ADR-0016). */
+/** The rings a release reaches before prod, in rollout order. */
 export const CANARY_RINGS = ["canary_0", "canary_1", "canary_2"] as const;
 export const RINGS = [...CANARY_RINGS, "prod"] as const;
 export type Ring = (typeof RINGS)[number];

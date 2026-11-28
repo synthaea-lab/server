@@ -1,11 +1,11 @@
 import { ContentRelease, Prisma } from "@prisma/client";
 
 /**
- * What a content rollback does and does not do (ADR-0032, issue #665).
+ * What a content rollback does and does not do (issue #665).
  *
  * A rollback reactivates an earlier release so that agents that have *not* yet applied the
  * rolled-back one get the earlier content. It cannot reach an agent that already applied it:
- * agents never go to a lower release number (anti-replay, ADR-0016), so such an agent keeps
+ * agents never go to a lower release number (anti-replay), so such an agent keeps
  * the rolled-back content and reports "the server offers an older release". Withdrawing the
  * content from those agents takes a corrective release, numbered above every release of the
  * ring, that carries the earlier content again. The server never holds the signing key, so

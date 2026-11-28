@@ -7,7 +7,7 @@ import { newestRunsByHunt } from "@/lib/hunt/runs";
 
 export const dynamic = "force-dynamic";
 
-/** A tenant may have 200 hunts (ADR-0025); one more row says the list was cut. */
+/** A tenant may have 200 hunts; one more row says the list was cut. */
 const LIST_LIMIT = 200;
 
 export default async function HuntsPage() {

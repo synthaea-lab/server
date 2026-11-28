@@ -4,7 +4,7 @@ import { validateBinaryPublishable } from "@/lib/content/binary-publish";
 import { validatePublishable } from "@/lib/content/publish";
 
 /**
- * Publishing a release to a ring, binary (ADR-0015) or content (ADR-0032). Both follow the same
+ * Publishing a release to a ring, binary or content. Both follow the same
  * steps: read the ring's latest release, decide the new number, refuse anything an agent could
  * not install or apply, then create the row and its audit entry in one transaction, so a
  * release never goes out unaudited. The callers only map the outcome to HTTP.

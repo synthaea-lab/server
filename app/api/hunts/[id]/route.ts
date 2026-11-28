@@ -10,7 +10,7 @@ type Params = { params: { id: string } };
 
 /**
  * Whether `next` replaces what is stored. A stored query that no longer parses (the case
- * ADR-0025 point 4 anticipates: a hunt kept from an older query version) counts as
+ * the saved-hunts design anticipates: a hunt kept from an older query version) counts as
  * different, so a PATCH carrying a valid query repairs the hunt instead of failing on it.
  */
 function queryDiffers(next: SavedQuery, stored: unknown): boolean {
@@ -93,7 +93,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     const { tenantId } = authed;
     const { count } = await prisma.hunt.deleteMany({ where: { id: params.id, tenantId } });
     if (count === 0) return NextResponse.json({ error: "Hunt not found" }, { status: 404 });
-    // The hunt leaves the lists of the notification channels that held it (ADR-0036). The hunt is
+    // The hunt leaves the lists of the notification channels that held it. The hunt is
     // already gone, so a failure here is logged and does not turn the delete into an error.
     await dropHuntFromChannels(prisma, tenantId, params.id).catch((e) => console.error("Hunt channel cleanup failed:", e));
     return new NextResponse(null, { status: 204 });

@@ -5,7 +5,7 @@ import { consoleUrl } from "./urls";
 import { findActiveSilentCases } from "@/lib/cases/silent-agent-case";
 
 /**
- * Host state transitions for the notification outbox (ADR-0036 point 2, slice 2, #863).
+ * Host state transitions for the notification outbox (slice 2, #863).
  *
  * `degraded` is computed on read and expires with a clock (the loss window), so no beacon
  * marks the end of a loss: the transition is found by comparing what `fleetStatus` says now

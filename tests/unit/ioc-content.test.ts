@@ -6,7 +6,7 @@ import { isPublicSuffix } from "@/lib/public-suffix";
 import { itWithSibling, siblingPath } from "../helpers/siblings";
 
 /**
- * Content check for `rules/ioc/` (#934, ADR-0038): every `*.txt` there is one feed, and it must be
+ * Content check for `rules/ioc/` (#934): every `*.txt` there is one feed, and it must be
  * a file the feed builder would publish as it stands. The builder's rules are the device's plus the
  * public-suffix check only the server can make, so this is the check the engine's own loader
  * (`crates/intel/tests/content.rs`) cannot do. Vacuous while the directory is empty.
